@@ -1,0 +1,312 @@
+import type {
+  ProviderCapabilitySummary,
+  ProviderRegistryPort,
+} from '../clients/clients.interfaces';
+import type { CosperRequest } from '../integrations/cosper/cosper.schema';
+import type { AcornPayload, BeaconPayload } from '../testing/payloads';
+import { describe, expect, it } from 'vitest';
+import { throwInvariant } from '../common/errors/invariant';
+import OpenAPISchemaValidator from 'openapi-schema-validator';
+import type { OpenAPI } from 'openapi-types';
+import { openApiDocument, operationDocumentation } from './openapi';
+import { acornClientSchema } from '../integrations/acorn/acorn.schema';
+import { beaconClientSchema } from '../integrations/beacon/beacon.schema';
+import { canonicalClientSchema } from '../clients/schemas/canonical-client.schema';
+import { cosperRequestSchema } from '../integrations/cosper/cosper.schema';
+import { createBuiltInRegistry } from '../integrations/provider.registry';
+import { minimalClient } from '../testing/factories';
+
+function requestExample(
+  document: ReturnType<typeof openApiDocument>,
+  path: string,
+): unknown {
+  const body = document.paths[path]?.post?.requestBody;
+
+  if (body === undefined || '$ref' in body) {
+    throw new Error(`Missing inline request body: ${path}`);
+  }
+
+  const example = body.content['application/json']?.examples?.['sample'];
+
+  if (example === undefined || '$ref' in example) {
+    throw new Error(`Missing inline request example: ${path}`);
+  }
+
+  return example.value;
+}
+
+describe('OpenAPI document', () => {
+  const capabilities: readonly ProviderCapabilitySummary[] = [
+    {
+      slug: 'acorn',
+      supports: ['normalise'],
+    },
+    {
+      slug: 'beacon',
+      supports: ['normalise'],
+    },
+    {
+      slug: 'cosper',
+      supports: ['build-request'],
+    },
+  ];
+
+  function documentedDocument(
+    caps: readonly ProviderCapabilitySummary[] = capabilities,
+  ) {
+    const entries = createBuiltInRegistry();
+
+    const registry: ProviderRegistryPort = {
+      list: () => [],
+      find: (name: string) => entries.find((entry) => entry.name === name),
+    };
+
+    return openApiDocument(caps, operationDocumentation(registry, caps));
+  }
+
+  it('documents exactly the registered operation capabilities', () => {
+    const document = documentedDocument();
+
+    expect(Object.keys(document.paths)).toEqual([
+      '/health',
+      '/v1/providers',
+      '/v1/acorn/clients/normalise',
+      '/v1/beacon/clients/normalise',
+      '/v1/cosper/clients/build-request',
+    ]);
+    expect(document.paths['/v1/cosper/clients/build-request']).toMatchObject({
+      post: { operationId: 'buildRequestCosper' },
+    });
+    expect(document.paths['/v1/acorn/clients/normalise']).toMatchObject({
+      post: {
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/AcornClient' },
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it('contains resolved canonical, request, response and error schemas', () => {
+    const document = openApiDocument(capabilities);
+    const { schemas } = document.components;
+
+    expect(schemas).toHaveProperty('ProviderCapability');
+    expect(schemas.ProviderCapability).toMatchObject({
+      type: 'object',
+      required: ['slug', 'supports'],
+      additionalProperties: false,
+      properties: {
+        slug: { type: 'string' },
+        supports: { type: 'array', items: { type: 'string' } },
+      },
+    });
+    expect(document.paths['/v1/providers']).toMatchObject({
+      get: {
+        responses: {
+          '200': {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/ProviderCapability' },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(schemas).toHaveProperty('CanonicalClient');
+    expect(schemas).toHaveProperty('SimulatedCosperResponse');
+    expect(schemas).toHaveProperty('ErrorResponse');
+    expect(schemas.SimulatedCosperResponse).toMatchObject({
+      required: ['provider', 'request', 'response', 'warnings'],
+    });
+    expect(schemas.ErrorResponse).toMatchObject({
+      required: ['error'],
+    });
+    expect(schemas.CanonicalClient).toMatchObject({
+      type: 'object',
+      required: [
+        'id',
+        'title',
+        'first_name',
+        'middle_names',
+        'last_name',
+        'full_name',
+        'date_of_birth',
+        'ni_number',
+        'legal_sex',
+        'marital_status',
+        'nationality',
+        'addresses',
+        'contact_details',
+      ],
+      additionalProperties: false,
+    });
+    expect(
+      schemas.SimulatedCosperResponse.properties?.['request'],
+    ).toMatchObject({
+      type: 'object',
+      required: [
+        'ClientRef',
+        'Forename',
+        'Surname',
+        'DateOfBirth',
+        'Sex',
+        'MaritalStatus',
+        'AddressLine1',
+        'AddressLine2',
+        'Town',
+        'Postcode',
+        'Country',
+        'Email',
+        'Telephone',
+      ],
+      additionalProperties: false,
+    });
+    expect(schemas.CanonicalClient.properties?.['title']).toMatchObject({
+      type: 'string',
+      nullable: true,
+    });
+    expect(schemas.CanonicalClient.properties?.['addresses']).toMatchObject({
+      type: 'array',
+      items: {
+        required: [
+          'primary',
+          'line1',
+          'line2',
+          'town_city',
+          'county',
+          'postcode',
+          'country',
+          'move_in_date',
+        ],
+      },
+    });
+    const operation = (document.paths['/v1/cosper/clients/build-request'] ??
+      throwInvariant('Missing Cosper operation')) as {
+      post: { responses: Record<string, unknown> };
+    };
+
+    for (const status of ['400', '404', '422', '500']) {
+      expect(
+        operation.post.responses[status] ??
+          throwInvariant(`Missing ${status} response`),
+      ).toMatchObject({
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorResponse' },
+          },
+        },
+      });
+    }
+  });
+
+  it('does not share or cache capability-derived paths', () => {
+    const acorn = openApiDocument([{ slug: 'acorn', supports: ['normalise'] }]);
+    const cosper = openApiDocument([
+      { slug: 'cosper', supports: ['build-request'] },
+    ]);
+
+    expect(Object.keys(acorn.paths)).toEqual([
+      '/health',
+      '/v1/providers',
+      '/v1/acorn/clients/normalise',
+    ]);
+    expect(Object.keys(cosper.paths)).toEqual([
+      '/health',
+      '/v1/providers',
+      '/v1/cosper/clients/build-request',
+    ]);
+  });
+
+  it('uses a safe fallback schema for synthetic capabilities', () => {
+    const document = openApiDocument([
+      { slug: 'future-provider', supports: ['normalise'] },
+    ]);
+    const operation = (document.paths[
+      '/v1/future-provider/clients/normalise'
+    ] ?? throwInvariant('Missing future-provider operation')) as {
+      post: {
+        requestBody: { content: Record<string, { schema: unknown }> };
+      };
+    };
+    expect(
+      operation.post.requestBody.content['application/json']?.schema ??
+        throwInvariant('Missing JSON schema'),
+    ).toEqual({ type: 'object', additionalProperties: true });
+    const empty = openApiDocument([{ slug: '', supports: [''] }]);
+    const emptyOperation = (empty.paths['/v1//clients/'] ??
+      throwInvariant('Missing empty operation')) as {
+      post: { operationId: unknown };
+    };
+    expect(emptyOperation.post.operationId).toBe('');
+  });
+
+  it('keeps documented examples valid against runtime schemas', () => {
+    const document = documentedDocument();
+    const operation = (path: string) => requestExample(document, path);
+    expect(
+      acornClientSchema.safeParse(operation('/v1/acorn/clients/normalise'))
+        .success,
+    ).toBe(true);
+    expect(
+      beaconClientSchema.safeParse(operation('/v1/beacon/clients/normalise'))
+        .success,
+    ).toBe(true);
+    expect(
+      canonicalClientSchema.safeParse(
+        operation('/v1/cosper/clients/build-request'),
+      ).success,
+    ).toBe(true);
+  });
+
+  it('keeps documented request constraints aligned with runtime rejection', () => {
+    const document = documentedDocument();
+    const example = (path: string) => requestExample(document, path);
+
+    const acornInput: AcornPayload = {
+      ...(example('/v1/acorn/clients/normalise') as object),
+      id: -1,
+    };
+
+    expect(acornClientSchema.safeParse(acornInput).success).toBe(false);
+    const beaconInput: BeaconPayload = {
+      ...(example('/v1/beacon/clients/normalise') as object),
+      recordId: ' ',
+    };
+
+    expect(beaconClientSchema.safeParse(beaconInput).success).toBe(false);
+    const defaultClient = minimalClient();
+    const cosperInput: CosperRequest & Record<'unexpected', boolean> = {
+      ClientRef: defaultClient.id,
+      Forename: null,
+      Surname: null,
+      DateOfBirth: null,
+      Sex: 2,
+      MaritalStatus: 0,
+      AddressLine1: null,
+      AddressLine2: null,
+      Town: null,
+      Postcode: null,
+      Country: null,
+      Email: null,
+      Telephone: null,
+      unexpected: true,
+    };
+
+    expect(cosperRequestSchema.safeParse(cosperInput).success).toBe(false);
+  });
+
+  it('is valid OpenAPI 3.0 according to an independent validator', () => {
+    const validator = new OpenAPISchemaValidator({ version: 3 });
+    expect(
+      validator.validate(documentedDocument() as OpenAPI.Document).errors,
+    ).toEqual([]);
+  });
+});

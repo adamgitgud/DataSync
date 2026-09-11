@@ -1,0 +1,48 @@
+### List providers
+GET http://127.0.0.1:3000/v1/providers
+
+### Normalise Acorn fixture
+POST http://127.0.0.1:3000/v1/acorn/clients/normalise
+Content-Type: application/json
+
+< ./fixtures/acorn-client.json
+
+### Normalise Beacon fixture
+POST http://127.0.0.1:3000/v1/beacon/clients/normalise
+Content-Type: application/json
+
+< ./fixtures/beacon-client.json
+
+### Build Cosper request (send a canonical Client; save a normalise response first)
+POST http://127.0.0.1:3000/v1/cosper/clients/build-request
+Content-Type: application/json
+
+{
+  "id": "90210",
+  "title": "Mrs",
+  "first_name": "Priya",
+  "middle_names": null,
+  "last_name": "Chandra-Bose",
+  "full_name": "Priya Chandra-Bose",
+  "date_of_birth": "1985-07-02",
+  "ni_number": "QQ123456C",
+  "legal_sex": "female",
+  "marital_status": "cohabiting",
+  "nationality": "United Kingdom",
+  "addresses": [
+    {
+      "primary": true,
+      "line1": "Flat 4",
+      "line2": "12 Vereker Road",
+      "town_city": "London",
+      "county": "Greater London",
+      "postcode": "W14 9JR",
+      "country": "GB",
+      "move_in_date": "2016-03-01"
+    }
+  ],
+  "contact_details": [
+    { "type": "email", "value": "priya.cb@example.co.uk", "primary": true },
+    { "type": "mobile", "value": "+447700900123", "primary": true }
+  ]
+}
