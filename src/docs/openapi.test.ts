@@ -36,6 +36,20 @@ function requestExample(
   return example.value;
 }
 
+function requiredKeys(schema: unknown): string[] {
+  if (typeof schema !== 'object' || schema === null || Array.isArray(schema)) {
+    throw new Error('Expected schema object with required keys');
+  }
+
+  const required: unknown = (schema as Record<string, unknown>)['required'];
+
+  if (!Array.isArray(required)) {
+    throw new Error('Expected schema required array');
+  }
+
+  return required.map((entry) => String(entry)).sort();
+}
+
 describe('OpenAPI document', () => {
   const capabilities: readonly ProviderCapabilitySummary[] = [
     {
@@ -58,7 +72,6 @@ describe('OpenAPI document', () => {
     const entries = createBuiltInRegistry();
 
     const registry: ProviderRegistryPort = {
-      list: () => [],
       find: (name: string) => entries.find((entry) => entry.name === name),
       findOperation: (name: string, operation: string) => {
         const provider = entries.find((entry) => entry.name === name);
@@ -73,8 +86,9 @@ describe('OpenAPI document', () => {
           return undefined;
         }
 
-        return { provider, definition };
+        return { definition, provider };
       },
+      list: () => [],
     };
 
     return openApiDocument(caps, operationDocumentation(registry, caps));
@@ -112,13 +126,13 @@ describe('OpenAPI document', () => {
 
     expect(schemas).toHaveProperty('ProviderCapability');
     expect(schemas.ProviderCapability).toMatchObject({
-      type: 'object',
-      required: ['slug', 'supports'],
       additionalProperties: false,
       properties: {
         slug: { type: 'string' },
-        supports: { type: 'array', items: { type: 'string' } },
+        supports: { items: { type: 'string' }, type: 'array' },
       },
+      required: ['slug', 'supports'],
+      type: 'object',
     });
     expect(document.paths['/v1/providers']).toMatchObject({
       get: {
@@ -127,8 +141,8 @@ describe('OpenAPI document', () => {
             content: {
               'application/json': {
                 schema: {
-                  type: 'array',
                   items: { $ref: '#/components/schemas/ProviderCapability' },
+                  type: 'array',
                 },
               },
             },
@@ -146,64 +160,78 @@ describe('OpenAPI document', () => {
       required: ['error'],
     });
     expect(schemas.CanonicalClient).toMatchObject({
+      additionalProperties: false,
       type: 'object',
-      required: [
-        'id',
-        'title',
-        'first_name',
-        'middle_names',
-        'last_name',
-        'full_name',
-        'date_of_birth',
-        'ni_number',
-        'legal_sex',
-        'marital_status',
-        'nationality',
+    });
+    expect(requiredKeys(schemas.CanonicalClient)).toEqual(
+      [
         'addresses',
         'contact_details',
-      ],
-      additionalProperties: false,
-    });
+        'date_of_birth',
+        'first_name',
+        'full_name',
+        'id',
+        'last_name',
+        'legal_sex',
+        'marital_status',
+        'middle_names',
+        'nationality',
+        'ni_number',
+        'title',
+      ].sort(),
+    );
     expect(
       schemas.SimulatedCosperResponse.properties?.['request'],
     ).toMatchObject({
+      additionalProperties: false,
       type: 'object',
-      required: [
-        'ClientRef',
-        'Forename',
-        'Surname',
-        'DateOfBirth',
-        'Sex',
-        'MaritalStatus',
+    });
+    expect(
+      requiredKeys(schemas.SimulatedCosperResponse.properties?.['request']),
+    ).toEqual(
+      [
         'AddressLine1',
         'AddressLine2',
-        'Town',
-        'Postcode',
+        'ClientRef',
         'Country',
+        'DateOfBirth',
         'Email',
+        'Forename',
+        'MaritalStatus',
+        'Postcode',
+        'Sex',
+        'Surname',
         'Telephone',
-      ],
-      additionalProperties: false,
-    });
+        'Town',
+      ].sort(),
+    );
     expect(schemas.CanonicalClient.properties?.['title']).toMatchObject({
-      type: 'string',
       nullable: true,
+      type: 'string',
     });
     expect(schemas.CanonicalClient.properties?.['addresses']).toMatchObject({
       type: 'array',
-      items: {
-        required: [
-          'primary',
-          'line1',
-          'line2',
-          'town_city',
-          'county',
-          'postcode',
-          'country',
-          'move_in_date',
-        ],
-      },
     });
+    expect(
+      requiredKeys(
+        (
+          schemas.CanonicalClient.properties?.['addresses'] as {
+            items?: unknown;
+          }
+        )?.items,
+      ),
+    ).toEqual(
+      [
+        'country',
+        'county',
+        'line1',
+        'line2',
+        'move_in_date',
+        'postcode',
+        'primary',
+        'town_city',
+      ].sort(),
+    );
     const operation = (document.paths['/v1/cosper/clients/build-request'] ??
       throwInvariant('Missing Cosper operation')) as {
       post: { responses: Record<string, unknown> };
@@ -255,7 +283,7 @@ describe('OpenAPI document', () => {
     expect(
       operation.post.requestBody.content['application/json']?.schema ??
         throwInvariant('Missing JSON schema'),
-    ).toEqual({ type: 'object', additionalProperties: true });
+    ).toEqual({ additionalProperties: true, type: 'object' });
     const empty = openApiDocument([{ slug: '', supports: [''] }]);
     const emptyOperation = (empty.paths['/v1//clients/'] ??
       throwInvariant('Missing empty operation')) as {
@@ -300,19 +328,19 @@ describe('OpenAPI document', () => {
     expect(beaconClientSchema.safeParse(beaconInput).success).toBe(false);
     const defaultClient = minimalClient();
     const cosperInput: CosperRequest & Record<'unexpected', boolean> = {
-      ClientRef: defaultClient.id,
-      Forename: null,
-      Surname: null,
-      DateOfBirth: null,
-      Sex: 2,
-      MaritalStatus: 0,
       AddressLine1: null,
       AddressLine2: null,
-      Town: null,
-      Postcode: null,
+      ClientRef: defaultClient.id,
       Country: null,
+      DateOfBirth: null,
       Email: null,
+      Forename: null,
+      MaritalStatus: 0,
+      Postcode: null,
+      Sex: 2,
+      Surname: null,
       Telephone: null,
+      Town: null,
       unexpected: true,
     };
 
@@ -336,10 +364,10 @@ describe('OpenAPI document', () => {
         typeof value === 'object' &&
         typeof (value as { $ref?: unknown }).$ref === 'string'
       ) {
-        refs.add((value as { $ref: string }).$ref.split('/').pop() as string);
+        refs.add((value as { $ref: string }).$ref.split('/').pop()!);
       }
 
-      return value;
+      return value as unknown;
     });
 
     for (const name of Object.keys(document.components.schemas)) {
@@ -351,12 +379,12 @@ describe('OpenAPI document', () => {
     const document = documentedDocument();
     const operation = (document.paths['/v1/acorn/clients/normalise'] ??
       throwInvariant('Missing Acorn operation')) as {
-      post: { parameters: { name: string; in: string; required: boolean }[] };
+      post: { parameters: { in: string; name: string; required: boolean }[] };
     };
 
     expect(operation.post.parameters).toMatchObject([
-      { name: 'provider', in: 'path', required: true },
-      { name: 'operation', in: 'path', required: true },
+      { in: 'path', name: 'provider', required: true },
+      { in: 'path', name: 'operation', required: true },
     ]);
   });
 });

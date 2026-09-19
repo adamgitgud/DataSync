@@ -13,10 +13,10 @@ const entryBase = recordObject({
 
 function pathToValue(): valibot.IssuePathItem {
   return {
-    type: 'object',
-    origin: 'key',
     input: {},
     key: 'value',
+    origin: 'key',
+    type: 'object',
     value: undefined,
   };
 }
@@ -25,7 +25,7 @@ function bagSchema(keys: readonly string[], dateKey?: string) {
   const recognized = new Set(keys);
   const entry = valibot.pipe(
     entryBase,
-    valibot.rawTransform(({ dataset, addIssue, NEVER }) => {
+    valibot.rawTransform(({ addIssue, dataset, NEVER }) => {
       if (!recognized.has(dataset.value.key)) {
         return { key: dataset.value.key, value: null };
       }
@@ -38,7 +38,7 @@ function bagSchema(keys: readonly string[], dateKey?: string) {
 
       if (!result.success) {
         for (const issue of result.error.issues) {
-          addIssue({ path: [pathToValue()], message: issue.message });
+          addIssue({ message: issue.message, path: [pathToValue()] });
         }
 
         return NEVER;
@@ -79,27 +79,23 @@ const primarySchema = valibot.optional(
 );
 
 const addressSchema = recordObject({
+  city: optionalText,
+  country: optionalText,
+  county: optionalText,
   line1: optionalText,
   line2: optionalText,
-  city: optionalText,
-  county: optionalText,
   postcode: optionalText,
-  country: optionalText,
   primary: primarySchema,
 });
 
 const contactSchema = recordObject({
+  isPrimary: valibot.optional(valibot.boolean(), false),
   type: valibot.nullish(valibot.pipe(valibot.number(), valibot.integer())),
   value: optionalText,
-  isPrimary: valibot.optional(valibot.boolean(), false),
 });
 
 const beacon = recordObject({
-  recordId: valibot.pipe(
-    valibot.string(),
-    valibot.trim(),
-    valibot.minLength(1),
-  ),
+  addresses: optionalArray(addressSchema),
   attributes: valibot.optional(
     bagSchema(
       [
@@ -114,12 +110,16 @@ const beacon = recordObject({
     ),
     [],
   ),
+  contacts: optionalArray(contactSchema),
   formattedValues: valibot.optional(
     bagSchema(['title', 'gendercode', 'familystatuscode']),
     [],
   ),
-  addresses: optionalArray(addressSchema),
-  contacts: optionalArray(contactSchema),
+  recordId: valibot.pipe(
+    valibot.string(),
+    valibot.trim(),
+    valibot.minLength(1),
+  ),
 });
 
 export const beaconClientSchema = asCompatSchema(beacon);

@@ -21,11 +21,11 @@ export type BuiltInProviderCapability = {
 }[ProviderName];
 
 export interface ProviderOperationDocumentation {
+  readonly description?: string;
+  readonly requestExample?: object | undefined;
   readonly requestSchema?: string;
   readonly responseSchema?: string;
   readonly summary?: string;
-  readonly description?: string;
-  readonly requestExample?: object | undefined;
 }
 
 export interface ProviderOperationDefinition<
@@ -34,10 +34,10 @@ export interface ProviderOperationDefinition<
   TFormatted = TResult,
   TQuery = unknown,
 > {
+  readonly bodySchema?: InputSchema<TBody>;
+  readonly documentation?: ProviderOperationDocumentation;
   execute(input: TBody, query?: TQuery): TResult | Promise<TResult>;
   formatResult?(provider: string, result: TResult): TFormatted;
-  readonly documentation?: ProviderOperationDocumentation;
-  readonly bodySchema?: InputSchema<TBody>;
   readonly querySchema?: InputSchema<TQuery>;
 }
 
@@ -61,8 +61,8 @@ export interface BuildRequestResult<
   > & { simulated: true },
   TWarning extends object = {
     code: string;
-    path: (string | number)[];
     message: string;
+    path: (string | number)[];
   },
 > {
   readonly request: TRequest;
@@ -79,8 +79,8 @@ export interface ProviderCapabilityPort<
 }
 
 export interface ResolvedProviderOperation {
-  readonly provider: ProviderCapabilityPort;
   readonly definition: AnyProviderOperation;
+  readonly provider: ProviderCapabilityPort;
 }
 
 export function providerOperation(
@@ -95,35 +95,37 @@ export function providerOperation(
 }
 
 export interface ProviderRegistryPort {
-  list(): ProviderCapabilitySummary[];
   find(name: string): ProviderCapabilityPort | undefined;
   findOperation(
     name: string,
     operation: string,
   ): ResolvedProviderOperation | undefined;
+  list(): ProviderCapabilitySummary[];
+}
+
+export interface ExecuteOperationArgs {
+  readonly input: unknown;
+  readonly operation: string;
+  readonly provider: string;
+  readonly query: unknown;
 }
 
 export interface ClientsServicePort {
+  buildRequest(
+    provider: string,
+    input: unknown,
+  ): BuildRequestResult | Promise<BuildRequestResult>;
+  execute(args: ExecuteOperationArgs): unknown;
   listProviders(): ProviderCapabilitySummary[];
   normalise(
     provider: string,
     input: unknown,
   ): CanonicalClient | Promise<CanonicalClient>;
-  buildRequest(
-    provider: string,
-    input: unknown,
-  ): BuildRequestResult | Promise<BuildRequestResult>;
-  execute(
-    provider: string,
-    operation: string,
-    input: unknown,
-    query?: unknown,
-  ): unknown | Promise<unknown>;
 }
 
 export interface ClientsControllerPort {
-  readonly listProviders: Handler<{ Variables: DependencyVariables }>;
   readonly executeOperation: Handler<{ Variables: DependencyVariables }>;
+  readonly listProviders: Handler<{ Variables: DependencyVariables }>;
 }
 
 export type ProviderBuildResponse<

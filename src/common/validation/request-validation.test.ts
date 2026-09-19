@@ -20,28 +20,27 @@ const bodySchema = asCompatSchema(
 describe('request validation', () => {
   it('accepts trimmed params and rejects blank slugs', () => {
     expect(
-      providerParamsSchema.parse({ provider: 'acorn', operation: 'normalise' }),
-    ).toEqual({ provider: 'acorn', operation: 'normalise' });
+      providerParamsSchema.parse({ operation: 'normalise', provider: 'acorn' }),
+    ).toEqual({ operation: 'normalise', provider: 'acorn' });
     expect(() =>
-      providerParamsSchema.parse({ provider: '  ', operation: 'normalise' }),
+      providerParamsSchema.parse({ operation: 'normalise', provider: '  ' }),
     ).toThrow(InputValidationError);
     expect(() =>
-      providerParamsSchema.parse({ provider: 'acorn', operation: '' }),
+      providerParamsSchema.parse({ operation: '', provider: 'acorn' }),
     ).toThrow(InputValidationError);
   });
 
   it('validates query and body together (params assumed already validated)', () => {
     const validated = validateProviderRequest(
       { bodySchema, querySchema },
-      { provider: 'acorn', operation: 'normalise' },
-      { strict: 'true' },
-      { id: '7' },
+      { operation: 'normalise', provider: 'acorn' },
+      { body: { id: '7' }, query: { strict: 'true' } },
     );
 
     expect(validated).toEqual({
-      params: { provider: 'acorn', operation: 'normalise' },
-      query: { strict: 'true' },
       body: { id: '7' },
+      params: { operation: 'normalise', provider: 'acorn' },
+      query: { strict: 'true' },
     });
   });
 
@@ -49,9 +48,8 @@ describe('request validation', () => {
     try {
       validateProviderRequest(
         { bodySchema, querySchema },
-        { provider: 'acorn', operation: 'normalise' },
-        { strict: 'maybe' },
-        { id: '7' },
+        { operation: 'normalise', provider: 'acorn' },
+        { body: { id: '7' }, query: { strict: 'maybe' } },
       );
       expect.unreachable();
     } catch (error) {
@@ -64,9 +62,8 @@ describe('request validation', () => {
     try {
       validateProviderRequest(
         { bodySchema, querySchema },
-        { provider: 'acorn', operation: 'normalise' },
-        {},
-        { id: '' },
+        { operation: 'normalise', provider: 'acorn' },
+        { body: { id: '' }, query: {} },
       );
       expect.unreachable();
     } catch (error) {
@@ -79,9 +76,8 @@ describe('request validation', () => {
     const rawQuery = { anything: 'goes' };
     const validated = validateProviderRequest(
       { bodySchema },
-      { provider: 'acorn', operation: 'normalise' },
-      rawQuery,
-      { id: '7' },
+      { operation: 'normalise', provider: 'acorn' },
+      { body: { id: '7' }, query: rawQuery },
     );
 
     expect(validated.query).toBe(rawQuery);

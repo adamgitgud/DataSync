@@ -31,21 +31,21 @@ const channels = new Map<string, CanonicalContactDetail['type']>([
 function mapAddress(
   source: AcornClient['addresses'][number],
 ): CanonicalAddress {
-  const { buildingName, street, locality } = source;
+  const { buildingName, locality, street } = source;
 
   return {
-    primary: source.isPrimary,
+    country: normaliseCountry(source.countryName),
+    county: source.region,
     line1: buildingName ?? street ?? locality,
     line2: buildingName
       ? [street, locality].filter((part) => part !== null).join(', ') || null
       : street
         ? locality
         : null,
-    town_city: source.town,
-    county: source.region,
-    postcode: normalisePostcode(source.postcode),
-    country: normaliseCountry(source.countryName),
     move_in_date: source.movedIn,
+    postcode: normalisePostcode(source.postcode),
+    primary: source.isPrimary,
+    town_city: source.town,
   };
 }
 
@@ -60,26 +60,26 @@ function normaliseAcornImplementation(source: AcornClient): CanonicalClient {
   );
 
   const client: CanonicalClient = {
-    id: source.id,
-    title: person?.title ?? null,
+    addresses: source.addresses.map(mapAddress),
+    contact_details: contacts,
+    date_of_birth: person?.dateOfBirth ?? null,
     first_name: person?.firstName ?? null,
-    middle_names: person?.middleName ?? null,
-    last_name: person?.lastName ?? null,
     full_name: fullName(
       person?.firstName,
       person?.middleName,
       person?.lastName,
     ),
-    date_of_birth: person?.dateOfBirth ?? null,
-    ni_number: normaliseNi(person?.niNumber),
+    id: source.id,
+    last_name: person?.lastName ?? null,
     legal_sex: mapAcornSex(person?.gender),
     marital_status: mapAcornMaritalStatus(person?.maritalStatus),
+    middle_names: person?.middleName ?? null,
     nationality: acornNationality(
       person?.nationalityCountry?.isoCode,
       person?.nationalityCountry?.name,
     ),
-    addresses: source.addresses.map(mapAddress),
-    contact_details: contacts,
+    ni_number: normaliseNi(person?.niNumber),
+    title: person?.title ?? null,
   };
 
   return client;

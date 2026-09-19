@@ -36,19 +36,19 @@ type ClientProjection = Pick<
 > & {
   address: {
     content: string;
-    town_city: string | null;
+    country: CanonicalClient['addresses'][number]['country'];
     county: string | null;
     postcode: string | null;
-    country: CanonicalClient['addresses'][number]['country'];
+    town_city: string | null;
   };
   email: string | undefined;
   mobile: string | undefined;
 };
 
 const request = (body: unknown): RequestInit => ({
-  method: 'POST',
-  headers: { 'content-type': 'application/json' },
   body: JSON.stringify(body),
+  headers: { 'content-type': 'application/json' },
+  method: 'POST',
 });
 
 describe('fixture integration paths', () => {
@@ -69,105 +69,111 @@ describe('fixture integration paths', () => {
 
     const beaconClient = (await beaconResponse.json()) as Client;
     const projection = (client: Client): ClientProjection => ({
-      title: client['title'],
-      first_name: client['first_name'],
-      middle_names: client['middle_names'],
-      last_name: client['last_name'],
-      full_name: client['full_name'],
-      date_of_birth: client['date_of_birth'],
-      ni_number: client['ni_number'],
-      legal_sex: client['legal_sex'],
-      marital_status: client['marital_status'],
-      nationality: client['nationality'],
       address: {
         content: [client.addresses[0]?.line1, client.addresses[0]?.line2]
           .filter(Boolean)
           .join(', '),
-        town_city: client.addresses[0]?.town_city ?? null,
+        country: client.addresses[0]?.country ?? null,
         county: client.addresses[0]?.county ?? null,
         postcode: client.addresses[0]?.postcode ?? null,
-        country: client.addresses[0]?.country ?? null,
+        town_city: client.addresses[0]?.town_city ?? null,
       },
+      date_of_birth: client.date_of_birth,
       email: client.contact_details.find(
         (contact) => contact.type === 'email' && contact.primary,
       )?.value,
+      first_name: client.first_name,
+      full_name: client.full_name,
+      last_name: client.last_name,
+      legal_sex: client.legal_sex,
+      marital_status: client.marital_status,
+      middle_names: client.middle_names,
       mobile: client.contact_details.find(
         (contact) => contact.type === 'mobile' && contact.primary,
       )?.value,
+      nationality: client.nationality,
+      ni_number: client.ni_number,
+      title: client.title,
     });
 
     const expected: ClientProjection = {
-      title: 'Mrs',
-      first_name: 'Priya',
-      middle_names: null,
-      last_name: 'Chandra-Bose',
-      full_name: 'Priya Chandra-Bose',
-      date_of_birth: '1985-07-02',
-      ni_number: 'QQ123456C',
-      legal_sex: 'female',
-      marital_status: 'cohabiting',
-      nationality: 'United Kingdom',
       address: {
         content: 'Flat 4, 12 Vereker Road',
-        town_city: 'London',
+        country: 'GB',
         county: 'Greater London',
         postcode: 'W14 9JR',
-        country: 'GB',
+        town_city: 'London',
       },
+      date_of_birth: '1985-07-02',
       email: 'priya.cb@example.co.uk',
+      first_name: 'Priya',
+      full_name: 'Priya Chandra-Bose',
+      last_name: 'Chandra-Bose',
+      legal_sex: 'female',
+      marital_status: 'cohabiting',
+      middle_names: null,
       mobile: '+447700900123',
+      nationality: 'United Kingdom',
+      ni_number: 'QQ123456C',
+      title: 'Mrs',
     };
 
     expect(projection(acornClient)).toEqual(expected);
     expect(projection(beaconClient)).toEqual(expected);
-    expect(acornClient['id']).toBe('90210');
-    expect(beaconClient['id']).toBe('c0ffee7a-1e4b-2c9d-3e00-000000000001');
-    expect(acornClient['addresses']).toEqual([
+    expect(acornClient.id).toBe('90210');
+    expect(beaconClient.id).toBe('c0ffee7a-1e4b-2c9d-3e00-000000000001');
+    expect(acornClient.addresses).toEqual([
       {
-        primary: true,
+        country: 'GB',
+        county: 'Greater London',
         line1: 'Flat 4',
         line2: '12 Vereker Road',
-        town_city: 'London',
-        county: 'Greater London',
-        postcode: 'W14 9JR',
-        country: 'GB',
         move_in_date: '2016-03-01',
+        postcode: 'W14 9JR',
+        primary: true,
+        town_city: 'London',
       },
     ]);
-    expect(beaconClient['addresses']).toEqual([
+    expect(beaconClient.addresses).toEqual([
       {
-        primary: true,
+        country: 'GB',
+        county: 'Greater London',
         line1: 'Flat 4, 12 Vereker Road',
         line2: null,
-        town_city: 'London',
-        county: 'Greater London',
-        postcode: 'W14 9JR',
-        country: 'GB',
         move_in_date: null,
+        postcode: 'W14 9JR',
+        primary: true,
+        town_city: 'London',
       },
     ]);
-    expect(acornClient['contact_details']).toHaveLength(3);
-    expect(beaconClient['contact_details']).toHaveLength(2);
+    expect(acornClient.contact_details).toHaveLength(3);
+    expect(beaconClient.contact_details).toHaveLength(2);
   });
 
   it.each([
-    ['acorn', acorn, '90210', 'Flat 4', '12 Vereker Road'],
-    [
-      'beacon',
-      beacon,
-      'c0ffee7a-1e4b-2c9d-3e00-000000000001',
-      'Flat 4, 12 Vereker Road',
-      null,
-    ],
+    {
+      fixture: acorn,
+      id: '90210',
+      line1: 'Flat 4',
+      line2: '12 Vereker Road',
+      provider: 'acorn',
+    },
+    {
+      fixture: beacon,
+      id: 'c0ffee7a-1e4b-2c9d-3e00-000000000001',
+      line1: 'Flat 4, 12 Vereker Road',
+      line2: null,
+      provider: 'beacon',
+    },
   ] as const)(
-    'passes the %s canonical result into Cosper over HTTP',
-    async (provider, fixture, id, line1, line2) => {
+    'passes the canonical result into Cosper over HTTP',
+    async ({ fixture, id, line1, line2, provider }) => {
       const normaliseResponse = await app.request(
         `/v1/${provider}/clients/normalise`,
         request(fixture),
       );
 
-      const canonical = await normaliseResponse.json();
+      const canonical: unknown = await normaliseResponse.json();
 
       const response = await app.request(
         '/v1/cosper/clients/build-request',
@@ -178,21 +184,21 @@ describe('fixture integration paths', () => {
       expect(await response.json()).toEqual({
         provider: 'cosper',
         request: {
-          ClientRef: id,
-          Forename: 'Priya',
-          Surname: 'Chandra-Bose',
-          DateOfBirth: '02/07/1985',
-          Sex: 1,
-          MaritalStatus: 3,
           AddressLine1: line1,
           AddressLine2: line2,
-          Town: 'London',
-          Postcode: 'W14 9JR',
+          ClientRef: id,
           Country: 'United Kingdom',
+          DateOfBirth: '02/07/1985',
           Email: 'priya.cb@example.co.uk',
+          Forename: 'Priya',
+          MaritalStatus: 3,
+          Postcode: 'W14 9JR',
+          Sex: 1,
+          Surname: 'Chandra-Bose',
           Telephone: '+44 7700 900123',
+          Town: 'London',
         },
-        response: { simulated: true, status: 'created', clientRef: id },
+        response: { clientRef: id, simulated: true, status: 'created' },
         warnings: [],
       });
     },

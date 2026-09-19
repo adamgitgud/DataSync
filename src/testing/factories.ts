@@ -15,14 +15,14 @@ export function address(
   overrides: Partial<CanonicalAddress> = {},
 ): CanonicalAddress {
   return {
-    primary: false,
+    country: null,
+    county: null,
     line1: null,
     line2: null,
-    town_city: null,
-    county: null,
-    postcode: null,
-    country: null,
     move_in_date: null,
+    postcode: null,
+    primary: false,
+    town_city: null,
     ...overrides,
   };
 }
@@ -32,5 +32,5 @@ export function contact(
   value: string,
   primary = false,
 ): CanonicalContactDetail {
-  return { type, value, primary };
+  return { primary, type, value };
 }

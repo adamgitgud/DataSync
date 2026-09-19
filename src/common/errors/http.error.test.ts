@@ -5,37 +5,41 @@ import { InputValidationError } from '../validation/input-validation';
 
 describe('asHttpError', () => {
   it('passes through HttpError', () => {
-    const error = new HttpError(404, 'NOT_FOUND', 'Route not found');
+    const error = new HttpError({
+      code: 'NOT_FOUND',
+      message: 'Route not found',
+      status: 404,
+    });
 
     expect(asHttpError(error)).toBe(error);
   });
 
   it('maps validation and domain errors', () => {
     expect(
-      asHttpError(new InputValidationError([{ path: ['id'], message: 'x' }])),
-    ).toMatchObject({ status: 422, code: 'VALIDATION_ERROR' });
+      asHttpError(new InputValidationError([{ message: 'x', path: ['id'] }])),
+    ).toMatchObject({ code: 'VALIDATION_ERROR', status: 422 });
     expect(asHttpError(new InvalidBuildResultError())).toMatchObject({
-      status: 500,
       code: 'INTERNAL_ERROR',
+      status: 500,
     });
   });
 
   it('maps 413-like errors and falls back to 500', () => {
     expect(asHttpError({ status: 413 })).toMatchObject({
-      status: 413,
       code: 'PAYLOAD_TOO_LARGE',
+      status: 413,
     });
     expect(asHttpError(null)).toMatchObject({
-      status: 500,
       code: 'INTERNAL_ERROR',
+      status: 500,
     });
     expect(asHttpError('boom')).toMatchObject({
-      status: 500,
       code: 'INTERNAL_ERROR',
+      status: 500,
     });
     expect(asHttpError({ status: '413' })).toMatchObject({
-      status: 500,
       code: 'INTERNAL_ERROR',
+      status: 500,
     });
   });
 });

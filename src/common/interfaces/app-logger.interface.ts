@@ -1,6 +1,6 @@
 export interface AppLogger {
   error(
     message: string,
-    context: { path: string; method: string; error?: unknown },
+    context: { error?: unknown; method: string; path: string },
   ): void;
 }

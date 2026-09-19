@@ -19,17 +19,17 @@ const defaultLogger: AppLogger = {
 };
 
 export interface DependencyOverrides {
-  providers?: readonly ProviderCapabilityPort[];
+  clientsController?: ClientsControllerPort;
   clientsService?: ClientsServicePort;
   logger?: AppLogger;
-  clientsController?: ClientsControllerPort;
+  providers?: readonly ProviderCapabilityPort[];
 }
 
 export interface Dependencies {
-  providerRegistry: ProviderRegistryPort;
+  clientsController: ClientsControllerPort;
   clientsService: ClientsServicePort;
   logger: AppLogger;
-  clientsController: ClientsControllerPort;
+  providerRegistry: ProviderRegistryPort;
 }
 
 export function createDependencies(
@@ -38,7 +38,6 @@ export function createDependencies(
   const entries = overrides.providers ?? createBuiltInRegistry();
 
   const registry: ProviderRegistryPort = {
-    list: () => providerCapabilities(entries),
     find: (name) => {
       const normalisedProviderName = normaliseProviderName(name);
 
@@ -49,17 +48,18 @@ export function createDependencies(
     },
     findOperation: (name, operation) =>
       findProviderOperation(name, operation, entries),
+    list: () => providerCapabilities(entries),
   };
 
   const clientsService =
     overrides.clientsService ?? new ClientsService(registry);
 
   return {
-    providerRegistry: registry,
-    clientsService,
-    logger: overrides.logger ?? defaultLogger,
     clientsController:
       overrides.clientsController ??
       new ClientsController(clientsService, registry),
+    clientsService,
+    logger: overrides.logger ?? defaultLogger,
+    providerRegistry: registry,
   };
 }

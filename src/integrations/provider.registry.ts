@@ -37,16 +37,16 @@ export function createBuiltInRegistry(): BuiltInProviderCapability[] {
       name: 'acorn',
       operations: {
         normalise: {
-          execute: acornAdapter.normalise.bind(acornAdapter),
           bodySchema: acornClientSchema,
           documentation: {
-            requestSchema: 'AcornClient',
-            responseSchema: 'CanonicalClient',
-            summary: 'Normalise an Acorn client payload',
             description:
               'Validates raw Acorn JSON, then returns the canonical Client projection.',
             requestExample: acornExample,
+            requestSchema: 'AcornClient',
+            responseSchema: 'CanonicalClient',
+            summary: 'Normalise an Acorn client payload',
           },
+          execute: acornAdapter.normalise.bind(acornAdapter),
         },
       },
     },
@@ -54,16 +54,16 @@ export function createBuiltInRegistry(): BuiltInProviderCapability[] {
       name: 'beacon',
       operations: {
         normalise: {
-          execute: beaconAdapter.normalise.bind(beaconAdapter),
           bodySchema: beaconClientSchema,
           documentation: {
-            requestSchema: 'BeaconClient',
-            responseSchema: 'CanonicalClient',
-            summary: 'Normalise a Beacon client payload',
             description:
               'Validates raw Beacon JSON, then returns the canonical Client projection.',
             requestExample: beaconExample,
+            requestSchema: 'BeaconClient',
+            responseSchema: 'CanonicalClient',
+            summary: 'Normalise a Beacon client payload',
           },
+          execute: beaconAdapter.normalise.bind(beaconAdapter),
         },
       },
     },
@@ -71,8 +71,16 @@ export function createBuiltInRegistry(): BuiltInProviderCapability[] {
       name: 'cosper',
       operations: {
         'build-request': {
-          execute: cosperAdapter.buildRequest.bind(cosperAdapter),
           bodySchema: canonicalClientSchema,
+          documentation: {
+            description:
+              'Cosper creation is simulated; no outbound provider call is made.',
+            requestExample: cosperExample,
+            requestSchema: 'CanonicalClient',
+            responseSchema: 'SimulatedCosperResponse',
+            summary: 'Build a simulated Cosper request',
+          },
+          execute: cosperAdapter.buildRequest.bind(cosperAdapter),
           formatResult: (
             provider: string,
             result: CosperBuildResult,
@@ -80,14 +88,6 @@ export function createBuiltInRegistry(): BuiltInProviderCapability[] {
             provider,
             ...result,
           }),
-          documentation: {
-            requestSchema: 'CanonicalClient',
-            responseSchema: 'SimulatedCosperResponse',
-            summary: 'Build a simulated Cosper request',
-            description:
-              'Cosper creation is simulated; no outbound provider call is made.',
-            requestExample: cosperExample,
-          },
         },
       },
     },
@@ -127,7 +127,7 @@ export function findProviderOperation(
     return undefined;
   }
 
-  return { provider, definition };
+  return { definition, provider };
 }
 
 export function providerCapabilities(

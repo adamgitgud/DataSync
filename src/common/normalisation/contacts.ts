@@ -14,12 +14,12 @@ export function toCanonicalContact(
   }
 
   return {
+    primary,
     type,
     value:
       type === 'mobile' || type === 'telephone'
         ? (normalisePhone(cleaned) ?? cleaned)
         : cleaned,
-    primary,
   };
 }
 

@@ -11,11 +11,11 @@ import { acornClientSchema, type AcornClient } from './acorn.schema';
 import { InputValidationError } from '../../common/validation/input-validation';
 import { address, minimalClient } from '../../testing/factories';
 
-function validateAcorn(input: AcornPayload | unknown): AcornClient {
+function validateAcorn(input: unknown): AcornClient {
   return acornClientSchema.parse(input);
 }
 
-function normalisePayload(input: AcornPayload | unknown) {
+function normalisePayload(input: unknown) {
   return normaliseValidatedAcorn(validateAcorn(input));
 }
 
@@ -49,34 +49,34 @@ describe('Acorn fixture', () => {
     const result = normalisePayload(fixture);
 
     expect(result).toEqual({
-      id: '90210',
-      title: 'Mrs',
-      first_name: 'Priya',
-      middle_names: null,
-      last_name: 'Chandra-Bose',
-      full_name: 'Priya Chandra-Bose',
-      date_of_birth: '1985-07-02',
-      ni_number: 'QQ123456C',
-      legal_sex: 'female',
-      marital_status: 'cohabiting',
-      nationality: 'United Kingdom',
       addresses: [
         {
-          primary: true,
+          country: 'GB',
+          county: 'Greater London',
           line1: 'Flat 4',
           line2: '12 Vereker Road',
-          town_city: 'London',
-          county: 'Greater London',
-          postcode: 'W14 9JR',
-          country: 'GB',
           move_in_date: '2016-03-01',
+          postcode: 'W14 9JR',
+          primary: true,
+          town_city: 'London',
         },
       ],
       contact_details: [
-        { type: 'email', value: 'priya.cb@example.co.uk', primary: true },
-        { type: 'mobile', value: '+447700900123', primary: true },
-        { type: 'email', value: 'priya@oldmail.example', primary: false },
+        { primary: true, type: 'email', value: 'priya.cb@example.co.uk' },
+        { primary: true, type: 'mobile', value: '+447700900123' },
+        { primary: false, type: 'email', value: 'priya@oldmail.example' },
       ],
+      date_of_birth: '1985-07-02',
+      first_name: 'Priya',
+      full_name: 'Priya Chandra-Bose',
+      id: '90210',
+      last_name: 'Chandra-Bose',
+      legal_sex: 'female',
+      marital_status: 'cohabiting',
+      middle_names: null,
+      nationality: 'United Kingdom',
+      ni_number: 'QQ123456C',
+      title: 'Mrs',
     });
     expect(canonicalClientSchema.parse(result)).toEqual(result);
     expect(fixture).toEqual(before);
@@ -160,18 +160,18 @@ describe('Acorn enum mappings', () => {
         typeof channel === 'string' ? ` ${channel.toUpperCase()} ` : channel,
       ]) {
         const acornInput: AcornPayload = {
-          id: 1,
           contactPoints: [{ channel: label, detail: ' 07700 900123 ' }],
+          id: 1,
         };
 
         expect(normalisePayload(acornInput).contact_details).toEqual([
           {
+            primary: false,
             type: expected,
             value:
               expected === 'mobile' || expected === 'telephone'
                 ? '+447700900123'
                 : '07700 900123',
-            primary: false,
           },
         ]);
       }
@@ -203,9 +203,9 @@ describe('Acorn absent data and normalisation', () => {
     (items) => {
       const expected = minimalClient();
       const acornInput: AcornPayload = {
-        id: expected.id,
         addresses: items,
         contactPoints: items,
+        id: expected.id,
       };
 
       expect(normalisePayload(acornInput)).toEqual(expected);
@@ -214,42 +214,42 @@ describe('Acorn absent data and normalisation', () => {
 
   it('cleans all optional text, names, NI and postcode, preserving free nationality', () => {
     const expected = minimalClient({
-      title: 'Dr',
-      first_name: 'Priya',
-      middle_names: 'Anne  Mary',
-      last_name: 'Bose',
-      full_name: 'Priya Anne Mary Bose',
-      ni_number: 'QQ123456C',
-      nationality: 'Martian',
-      date_of_birth: '2024-02-29',
       addresses: [
         address({
-          town_city: 'London',
+          country: 'GB',
           county: 'Greater London',
           postcode: 'W14 9JR',
-          country: 'GB',
+          town_city: 'London',
         }),
       ],
+      date_of_birth: '2024-02-29',
+      first_name: 'Priya',
+      full_name: 'Priya Anne Mary Bose',
+      last_name: 'Bose',
+      middle_names: 'Anne  Mary',
+      nationality: 'Martian',
+      ni_number: 'QQ123456C',
+      title: 'Dr',
     });
     const acornInput: AcornPayload = {
-      id: expected.id,
-      person: {
-        title: ' Dr ',
-        firstName: ' Priya ',
-        middleName: ' Anne  Mary ',
-        lastName: ' Bose ',
-        niNumber: ' qq 12\t34 56 c ',
-        nationalityCountry: { isoCode: 'invalid', name: ' Martian ' },
-        dateOfBirth: ' 2024-02-29 ',
-      },
       addresses: [
         {
-          town: ' London ',
-          region: ' Greater London ',
-          postcode: ' w14 9jr ',
           countryName: ' uk ',
+          postcode: ' w14 9jr ',
+          region: ' Greater London ',
+          town: ' London ',
         },
       ],
+      id: expected.id,
+      person: {
+        dateOfBirth: ' 2024-02-29 ',
+        firstName: ' Priya ',
+        lastName: ' Bose ',
+        middleName: ' Anne  Mary ',
+        nationalityCountry: { isoCode: 'invalid', name: ' Martian ' },
+        niNumber: ' qq 12\t34 56 c ',
+        title: ' Dr ',
+      },
     };
 
     expect(normalisePayload(acornInput)).toEqual(expected);
@@ -258,28 +258,28 @@ describe('Acorn absent data and normalisation', () => {
   it('turns blank optional fields into null and retains an empty address', () => {
     const expected = minimalClient({ addresses: [address()] });
     const acornInput: AcornPayload = {
-      id: expected.id,
-      person: {
-        title: ' ',
-        firstName: '',
-        middleName: null,
-        lastName: '\t',
-        dateOfBirth: ' ',
-        niNumber: '',
-        nationalityCountry: null,
-      },
       addresses: [
         {
           buildingName: '',
-          street: ' ',
-          locality: null,
-          town: '',
-          region: ' ',
-          postcode: '\t',
           countryName: 'Atlantis',
+          locality: null,
           movedIn: ' ',
+          postcode: '\t',
+          region: ' ',
+          street: ' ',
+          town: '',
         },
       ],
+      id: expected.id,
+      person: {
+        dateOfBirth: ' ',
+        firstName: '',
+        lastName: '\t',
+        middleName: null,
+        nationalityCountry: null,
+        niNumber: '',
+        title: ' ',
+      },
     };
 
     expect(normalisePayload(acornInput)).toEqual(expected);
@@ -304,7 +304,6 @@ describe('Acorn absent data and normalisation', () => {
 
   it('drops only blank contacts and preserves all usable values and source ordering', () => {
     const acornInput: AcornPayload = {
-      id: 1,
       contactPoints: [
         {},
         { detail: null },
@@ -321,26 +320,27 @@ describe('Acorn absent data and normalisation', () => {
           preferred: true,
         },
       ],
+      id: 1,
     };
 
     expect(normalisePayload(acornInput).contact_details).toEqual([
-      { type: 'mobile', value: '07700 900123 ext 4', primary: true },
-      { type: 'other', value: 'fax:123', primary: false },
-      { type: 'email', value: 'a@example.org', primary: true },
+      { primary: true, type: 'mobile', value: '07700 900123 ext 4' },
+      { primary: false, type: 'other', value: 'fax:123' },
+      { primary: true, type: 'email', value: 'a@example.org' },
     ]);
   });
 
   it('ignores extra provider keys at each level', () => {
     const expected = minimalClient({
       addresses: [address()],
-      contact_details: [{ type: 'other', value: 'abc', primary: false }],
+      contact_details: [{ primary: false, type: 'other', value: 'abc' }],
     });
     const extendedAcornInput: WithAdditionalFields<AcornPayload> = {
-      id: expected.id,
-      future: {},
-      person: { future: 42, nationalityCountry: { future: [] } },
-      addresses: [{ kind: 'Home', future: 42 }],
+      addresses: [{ future: 42, kind: 'Home' }],
       contactPoints: [{ detail: 'abc', future: [] }],
+      future: {},
+      id: expected.id,
+      person: { future: 42, nationalityCountry: { future: [] } },
     };
 
     expect(normalisePayload(extendedAcornInput)).toEqual(expected);
@@ -349,20 +349,68 @@ describe('Acorn absent data and normalisation', () => {
 
 describe('Acorn address layout', () => {
   it.each([
-    ['Flat 4', '12 Road', 'Village', 'Flat 4', '12 Road, Village'],
-    ['Flat 4', '12 Road', null, 'Flat 4', '12 Road'],
-    ['Flat 4', null, 'Village', 'Flat 4', 'Village'],
-    ['Flat 4', null, null, 'Flat 4', null],
-    [null, '12 Road', 'Village', '12 Road', 'Village'],
-    [null, '12 Road', null, '12 Road', null],
-    [null, null, 'Village', 'Village', null],
-    [null, null, null, null, null],
+    {
+      buildingName: 'Flat 4',
+      line1: 'Flat 4',
+      line2: '12 Road, Village',
+      locality: 'Village',
+      street: '12 Road',
+    },
+    {
+      buildingName: 'Flat 4',
+      line1: 'Flat 4',
+      line2: '12 Road',
+      locality: null,
+      street: '12 Road',
+    },
+    {
+      buildingName: 'Flat 4',
+      line1: 'Flat 4',
+      line2: 'Village',
+      locality: 'Village',
+      street: null,
+    },
+    {
+      buildingName: 'Flat 4',
+      line1: 'Flat 4',
+      line2: null,
+      locality: null,
+      street: null,
+    },
+    {
+      buildingName: null,
+      line1: '12 Road',
+      line2: 'Village',
+      locality: 'Village',
+      street: '12 Road',
+    },
+    {
+      buildingName: null,
+      line1: '12 Road',
+      line2: null,
+      locality: null,
+      street: '12 Road',
+    },
+    {
+      buildingName: null,
+      line1: 'Village',
+      line2: null,
+      locality: 'Village',
+      street: null,
+    },
+    {
+      buildingName: null,
+      line1: null,
+      line2: null,
+      locality: null,
+      street: null,
+    },
   ])(
     'lays out building=%j street=%j locality=%j',
-    (buildingName, street, locality, line1, line2) => {
+    ({ buildingName, line1, line2, locality, street }) => {
       const acornInput: AcornPayload = {
+        addresses: [{ buildingName, locality, street }],
         id: 1,
-        addresses: [{ buildingName, street, locality }],
       };
 
       expect(normalisePayload(acornInput).addresses).toEqual([
@@ -373,16 +421,16 @@ describe('Acorn address layout', () => {
 
   it('cleans components before composing and never reorders primary addresses', () => {
     const acornInput: AcornPayload = {
-      id: 1,
       addresses: [
-        { buildingName: ' ', street: ' Road ', locality: ' Village ' },
+        { buildingName: ' ', locality: ' Village ', street: ' Road ' },
         {
           buildingName: ' Building ',
-          street: ' Road ',
-          locality: ' Village ',
           isPrimary: true,
+          locality: ' Village ',
+          street: ' Road ',
         },
       ],
+      id: 1,
     };
 
     expect(normalisePayload(acornInput).addresses).toEqual([
@@ -482,8 +530,8 @@ describe('Acorn classified caller errors', () => {
     'movedIn',
   ])('rejects non-text address %s', (key) => {
     const malformedAcornInput: MalformedAcornPayload = {
-      id: 1,
       addresses: [{ [key]: 42 }],
+      id: 1,
     };
 
     return expectInvalid(malformedAcornInput, ['addresses', 0, key]);
@@ -493,8 +541,8 @@ describe('Acorn classified caller errors', () => {
     'rejects non-text contact %s even if detail would be dropped',
     (key) => {
       const malformedAcornInput: MalformedAcornPayload = {
-        id: 1,
         contactPoints: [{ [key]: 42 }],
+        id: 1,
       };
 
       expectInvalid(malformedAcornInput, ['contactPoints', 0, key]);
@@ -505,14 +553,14 @@ describe('Acorn classified caller errors', () => {
     'rejects nonboolean flags %j',
     (flag) => {
       const malformedAcornInput: MalformedAcornPayload = {
-        id: 1,
         addresses: [{ isPrimary: flag }],
+        id: 1,
       };
 
       expectInvalid(malformedAcornInput, ['addresses', 0, 'isPrimary']);
       const malformedAcornInput2: MalformedAcornPayload = {
-        id: 1,
         contactPoints: [{ preferred: flag }],
+        id: 1,
       };
 
       expectInvalid(malformedAcornInput2, ['contactPoints', 0, 'preferred']);
@@ -526,8 +574,8 @@ describe('Acorn classified caller errors', () => {
 
       expectInvalid(acornInput, ['person', 'dateOfBirth']);
       const acornInput2: AcornPayload = {
-        id: 1,
         addresses: [{ movedIn: date }],
+        id: 1,
       };
 
       expectInvalid(acornInput2, ['addresses', 0, 'movedIn']);

@@ -89,11 +89,11 @@ describe('explicit real calendar dates', () => {
         result.issues[0] ?? throwInvariant('Expected a validation issue');
 
       expect({
-        path: firstIssue.path?.map((item) => item.key),
         message: firstIssue.message,
+        path: firstIssue.path?.map((item) => item.key),
       }).toEqual({
-        path: ['person', 'dateOfBirth'],
         message: 'Expected a valid YYYY-MM-DD date',
+        path: ['person', 'dateOfBirth'],
       });
     }
   });

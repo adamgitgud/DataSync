@@ -12,8 +12,8 @@ const nonEmptySlug = valibot.pipe(
 
 export const providerParamsSchema = asCompatSchema(
   valibot.object({
-    provider: nonEmptySlug,
     operation: nonEmptySlug,
+    provider: nonEmptySlug,
   }),
 );
 
@@ -22,9 +22,9 @@ export type ProviderParams = valibot.InferOutput<
 >;
 
 export interface ValidatedProviderRequest<TBody = unknown, TQuery = unknown> {
+  body: TBody;
   params: ProviderParams;
   query: TQuery;
-  body: TBody;
 }
 
 export function validateProviderRequest<TBody = unknown, TQuery = unknown>(
@@ -33,20 +33,19 @@ export function validateProviderRequest<TBody = unknown, TQuery = unknown>(
     readonly querySchema?: InputSchema<TQuery> | undefined;
   },
   params: ProviderParams,
-  rawQuery: unknown,
-  rawBody: unknown,
+  raw: { readonly body: unknown; readonly query: unknown },
 ): ValidatedProviderRequest<TBody, TQuery> {
   const query =
     definition.querySchema === undefined
-      ? (rawQuery as TQuery)
-      : parseInput(definition.querySchema, rawQuery);
+      ? (raw.query as TQuery)
+      : parseInput(definition.querySchema, raw.query);
 
   const body =
     definition.bodySchema === undefined
-      ? (rawBody as TBody)
-      : parseInput(definition.bodySchema, rawBody);
+      ? (raw.body as TBody)
+      : parseInput(definition.bodySchema, raw.body);
 
-  return { params, query, body };
+  return { body, params, query };
 }
 
 export async function parseJsonBody(context: Context): Promise<unknown> {
@@ -54,18 +53,22 @@ export async function parseJsonBody(context: Context): Promise<unknown> {
   const contentType = request.headers.get('content-type') ?? '';
 
   if (!contentType.toLowerCase().includes('application/json')) {
-    throw new HttpError(
-      400,
-      'INVALID_JSON',
-      'Expected application/json request body',
-    );
+    throw new HttpError({
+      code: 'INVALID_JSON',
+      message: 'Expected application/json request body',
+      status: 400,
+    });
   }
 
   try {
     const text = await request.text();
 
     if (text.trim() === '') {
-      throw new HttpError(400, 'INVALID_JSON', 'Empty JSON request body');
+      throw new HttpError({
+        code: 'INVALID_JSON',
+        message: 'Empty JSON request body',
+        status: 400,
+      });
     }
 
     return JSON.parse(text) as unknown;
@@ -74,6 +77,10 @@ export async function parseJsonBody(context: Context): Promise<unknown> {
       throw error;
     }
 
-    throw new HttpError(400, 'INVALID_JSON', 'Malformed JSON request body');
+    throw new HttpError({
+      code: 'INVALID_JSON',
+      message: 'Malformed JSON request body',
+      status: 400,
+    });
   }
 }

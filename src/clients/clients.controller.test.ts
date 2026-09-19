@@ -34,34 +34,34 @@ describe('ClientsController', () => {
     const stubId = 'x';
 
     const clientsService: ClientsServicePort = {
-      listProviders: () => [{ slug: 'cosper', supports: ['build-request'] }],
-      normalise: async (provider, input) => {
-        seen.push([provider, input]);
-
-        return minimalClient({ id: stubId });
-      },
-      buildRequest: async (provider, input) => {
+      buildRequest: (provider, input) => {
         seen.push([provider, input]);
 
         return {
           request: { ClientRef: String((input as { id: string }).id) },
-          response: { simulated: true, status: 'created', clientRef: stubId },
+          response: { clientRef: stubId, simulated: true, status: 'created' },
           warnings: [],
         };
       },
-      execute: async (provider, operation, input) => {
-        seen.push([provider, operation, input]);
+      execute: (args) => {
+        seen.push([args.provider, args.operation, args.input]);
 
-        if (operation === 'normalise') {
+        if (args.operation === 'normalise') {
           return minimalClient({ id: stubId });
         }
 
         return {
-          provider,
-          request: { ClientRef: String((input as { id: string }).id) },
-          response: { simulated: true, status: 'created', clientRef: stubId },
+          provider: args.provider,
+          request: { ClientRef: String((args.input as { id: string }).id) },
+          response: { clientRef: stubId, simulated: true, status: 'created' },
           warnings: [],
         };
+      },
+      listProviders: () => [{ slug: 'cosper', supports: ['build-request'] }],
+      normalise: (provider, input) => {
+        seen.push([provider, input]);
+
+        return minimalClient({ id: stubId });
       },
     };
 
@@ -75,7 +75,6 @@ describe('ClientsController', () => {
     } as const;
 
     const providerRegistry: ProviderRegistryPort = {
-      list: () => [{ slug: 'cosper', supports: ['build-request'] }],
       find: (name) => {
         if (name === 'cosper') {
           return cosperCapability;
@@ -90,20 +89,21 @@ describe('ClientsController', () => {
       findOperation: (name, operation) => {
         if (name === 'cosper' && operation === 'build-request') {
           return {
-            provider: cosperCapability,
             definition: cosperCapability.operations['build-request'],
+            provider: cosperCapability,
           };
         }
 
         if (name === 'acorn' && operation === 'normalise') {
           return {
-            provider: acornCapability,
             definition: acornCapability.operations.normalise,
+            provider: acornCapability,
           };
         }
 
         return undefined;
       },
+      list: () => [{ slug: 'cosper', supports: ['build-request'] }],
     };
 
     const controller = new ClientsController(clientsService, providerRegistry);
@@ -119,9 +119,9 @@ describe('ClientsController', () => {
     const resultResponse = await testApp.request(
       '/v1/cosper/clients/build-request',
       {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
         body: `{"id":"${stubId}"}`,
+        headers: { 'content-type': 'application/json' },
+        method: 'POST',
       },
     );
 
@@ -129,7 +129,7 @@ describe('ClientsController', () => {
     expect(await resultResponse.json()).toEqual({
       provider: 'cosper',
       request: { ClientRef: stubId },
-      response: { simulated: true, status: 'created', clientRef: stubId },
+      response: { clientRef: stubId, simulated: true, status: 'created' },
       warnings: [],
     });
     expect(seen).toEqual([['cosper', 'build-request', { id: stubId }]]);
@@ -137,9 +137,9 @@ describe('ClientsController', () => {
     const normaliseResponse = await testApp.request(
       '/v1/acorn/clients/normalise',
       {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
         body: `{"id":"${stubId}"}`,
+        headers: { 'content-type': 'application/json' },
+        method: 'POST',
       },
     );
 

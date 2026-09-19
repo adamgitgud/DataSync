@@ -1,6 +1,6 @@
 export interface ValidationIssue {
-  path: (string | number)[];
   message: string;
+  path: (string | number)[];
 }
 
 export class InputValidationError extends Error {
@@ -10,8 +10,8 @@ export class InputValidationError extends Error {
     error:
       | {
           issues?: readonly {
-            path?: readonly unknown[] | undefined;
             message?: string;
+            path?: readonly unknown[] | undefined;
           }[];
         }
       | ValidationIssue[],
@@ -21,6 +21,7 @@ export class InputValidationError extends Error {
     const issues = Array.isArray(error) ? error : (error.issues ?? []);
 
     this.issues = issues.map((issue) => ({
+      message: issue.message ?? 'Invalid value',
       path: (issue.path ?? []).map((part) => {
         if (typeof part === 'number' || typeof part === 'string') {
           return part;
@@ -34,22 +35,21 @@ export class InputValidationError extends Error {
 
         return String(part);
       }),
-      message: issue.message ?? 'Invalid value',
     }));
   }
 }
 
 export interface InputSchema<ParsedInput> {
   safeParse(input: unknown):
-    | { success: true; data: ParsedInput }
+    | { data: ParsedInput; success: true }
     | {
-        success: false;
         error: {
           issues?: readonly {
-            path?: readonly unknown[] | undefined;
             message?: string;
+            path?: readonly unknown[] | undefined;
           }[];
         };
+        success: false;
       };
 }
 

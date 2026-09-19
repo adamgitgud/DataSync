@@ -16,19 +16,31 @@ export type ErrorCode =
 export interface ErrorBody {
   error: {
     code: ErrorCode;
+    issues?: { message: string; path: (string | number)[] }[];
     message: string;
-    issues?: { path: (string | number)[]; message: string }[];
   };
 }
 
+export interface HttpErrorInit {
+  readonly code: ErrorCode;
+  readonly issues?: { message: string; path: (string | number)[] }[];
+  readonly message: string;
+  readonly status: 400 | 404 | 413 | 422 | 500;
+}
+
 export class HttpError extends Error {
-  constructor(
-    readonly status: 400 | 404 | 413 | 422 | 500,
-    readonly code: ErrorCode,
-    message: string,
-    readonly issues?: { path: (string | number)[]; message: string }[],
-  ) {
-    super(message);
+  readonly code: ErrorCode;
+
+  readonly issues?:
+    { message: string; path: (string | number)[] }[] | undefined;
+
+  readonly status: 400 | 404 | 413 | 422 | 500;
+
+  constructor(init: HttpErrorInit) {
+    super(init.message);
+    this.code = init.code;
+    this.issues = init.issues;
+    this.status = init.status;
   }
 }
 
@@ -48,25 +60,41 @@ export function asHttpError(error: unknown): HttpError {
   }
 
   if (error instanceof InputValidationError) {
-    return new HttpError(
-      422,
-      'VALIDATION_ERROR',
-      'Invalid request payload',
-      error.issues,
-    );
+    return new HttpError({
+      code: 'VALIDATION_ERROR',
+      issues: error.issues,
+      message: 'Invalid request payload',
+      status: 422,
+    });
   }
 
   if (error instanceof OperationNotSupportedError) {
-    return new HttpError(400, 'OPERATION_NOT_SUPPORTED', error.message);
+    return new HttpError({
+      code: 'OPERATION_NOT_SUPPORTED',
+      message: error.message,
+      status: 400,
+    });
   }
 
   if (error instanceof InvalidBuildResultError) {
-    return new HttpError(500, 'INTERNAL_ERROR', 'Internal server error');
+    return new HttpError({
+      code: 'INTERNAL_ERROR',
+      message: 'Internal server error',
+      status: 500,
+    });
   }
 
   if (statusFromError(error) === 413) {
-    return new HttpError(413, 'PAYLOAD_TOO_LARGE', 'Request body too large');
+    return new HttpError({
+      code: 'PAYLOAD_TOO_LARGE',
+      message: 'Request body too large',
+      status: 413,
+    });
   }
 
-  return new HttpError(500, 'INTERNAL_ERROR', 'Internal server error');
+  return new HttpError({
+    code: 'INTERNAL_ERROR',
+    message: 'Internal server error',
+    status: 500,
+  });
 }

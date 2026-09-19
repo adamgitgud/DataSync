@@ -26,18 +26,24 @@ export function registerErrorHandling(
 
     if (httpError.status === 500) {
       context.get('dependencies').logger.error('Unexpected ZeroKey error', {
-        path: context.req.path,
-        method: context.req.method,
         error:
           error instanceof Error
-            ? { name: error.name, message: error.message, stack: error.stack }
+            ? { message: error.message, name: error.name, stack: error.stack }
             : error,
+        method: context.req.method,
+        path: context.req.path,
       });
     }
 
     return errorResponse(httpError);
   });
   app.notFound(() =>
-    errorResponse(new HttpError(404, 'NOT_FOUND', 'Route not found')),
+    errorResponse(
+      new HttpError({
+        code: 'NOT_FOUND',
+        message: 'Route not found',
+        status: 404,
+      }),
+    ),
   );
 }

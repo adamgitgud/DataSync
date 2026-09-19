@@ -5,6 +5,7 @@ import {
 } from '../validation/schema-compat';
 
 export function cleanText(value: string | null | undefined): string | null {
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- absent / empty becomes null
   return value?.trim() || null;
 }
 

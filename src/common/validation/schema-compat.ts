@@ -6,25 +6,24 @@ export interface CompatValidationError {
 }
 
 export interface CompatValidatedSchema<TParsed, TInput = unknown> {
+  parse(input: unknown): TParsed;
+  safeParse(input: unknown):
+    | { data: TParsed; success: true }
+    | {
+        error: CompatValidationError;
+        success: false;
+      };
   readonly schema: valibot.BaseSchema<
     TInput,
     TParsed,
     valibot.BaseIssue<unknown>
   >;
-  parse(input: unknown): TParsed;
-  safeParse(input: unknown):
-    | { success: true; data: TParsed }
-    | {
-        success: false;
-        error: CompatValidationError;
-      };
 }
 
 export function asCompatSchema<TParsed, TInput = unknown>(
   schema: valibot.BaseSchema<TInput, TParsed, valibot.BaseIssue<unknown>>,
 ): CompatValidatedSchema<TParsed, TInput> {
   return {
-    schema,
     parse(input) {
       const parseResult = valibot.safeParse(schema, input);
 
@@ -38,9 +37,10 @@ export function asCompatSchema<TParsed, TInput = unknown>(
       const parseResult = valibot.safeParse(schema, input);
 
       return parseResult.success
-        ? { success: true, data: parseResult.output }
-        : { success: false, error: { issues: parseResult.issues } };
+        ? { data: parseResult.output, success: true }
+        : { error: { issues: parseResult.issues }, success: false };
     },
+    schema,
   };
 }
 

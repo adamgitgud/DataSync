@@ -11,29 +11,29 @@ const optionalDate = valibot.optional(
   null,
 );
 const personSchema = recordObject({
-  title: optionalText,
-  firstName: optionalText,
-  middleName: optionalText,
-  lastName: optionalText,
   dateOfBirth: optionalDate,
-  niNumber: optionalText,
+  firstName: optionalText,
   gender: optionalText,
+  lastName: optionalText,
   maritalStatus: optionalText,
+  middleName: optionalText,
   nationalityCountry: valibot.nullish(
-    recordObject({ name: optionalText, isoCode: optionalText }),
+    recordObject({ isoCode: optionalText, name: optionalText }),
   ),
+  niNumber: optionalText,
+  title: optionalText,
 });
 
 const addressSchema = recordObject({
-  isPrimary: valibot.optional(valibot.boolean(), false),
   buildingName: optionalText,
-  street: optionalText,
-  locality: optionalText,
-  town: optionalText,
-  region: optionalText,
-  postcode: optionalText,
   countryName: optionalText,
+  isPrimary: valibot.optional(valibot.boolean(), false),
+  locality: optionalText,
   movedIn: optionalDate,
+  postcode: optionalText,
+  region: optionalText,
+  street: optionalText,
+  town: optionalText,
 });
 
 const contactSchema = recordObject({
@@ -43,6 +43,8 @@ const contactSchema = recordObject({
 });
 
 const acorn = recordObject({
+  addresses: optionalArray(addressSchema),
+  contactPoints: optionalArray(contactSchema),
   id: valibot.pipe(
     valibot.union([
       valibot.pipe(
@@ -56,8 +58,6 @@ const acorn = recordObject({
     valibot.transform(String),
   ),
   person: valibot.nullish(personSchema),
-  addresses: optionalArray(addressSchema),
-  contactPoints: optionalArray(contactSchema),
 });
 
 export const acornClientSchema = asCompatSchema(acorn);

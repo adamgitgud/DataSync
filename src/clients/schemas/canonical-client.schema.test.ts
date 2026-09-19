@@ -61,10 +61,10 @@ describe('canonical boundary', () => {
     { contact_details: null },
     { contact_details: [{}] },
     { contact_details: [contact('email', '  ')] },
-    { contact_details: [{ type: 'fax', value: '123', primary: false }] },
+    { contact_details: [{ primary: false, type: 'fax', value: '123' }] },
     {
       contact_details: [
-        { type: 'email', value: 'a@example.org', primary: 'true' },
+        { primary: 'true', type: 'email', value: 'a@example.org' },
       ],
     },
   ])('rejects malformed or unnormalised canonical data: %j', (changes) => {
@@ -78,8 +78,8 @@ describe('canonical boundary', () => {
 
   it('accepts real leap dates and supported country codes', () => {
     const input = minimalClient({
-      date_of_birth: '2024-02-29',
       addresses: [address({ country: 'GB' })],
+      date_of_birth: '2024-02-29',
     });
 
     expect(canonicalClientSchema.parse(input)).toEqual(input);
@@ -88,11 +88,11 @@ describe('canonical boundary', () => {
   it('strips unknown keys recursively without changing the caller object', () => {
     const input: WithAdditionalFields<CanonicalClient> = {
       ...minimalClient(),
-      extra: 1,
       addresses: [{ ...address(), extra: 'address' }],
       contact_details: [
         { ...contact('email', 'person@example.org'), extra: 'contact' },
       ],
+      extra: 1,
     };
 
     const before = structuredClone(input);

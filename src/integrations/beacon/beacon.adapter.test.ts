@@ -12,11 +12,11 @@ import { beaconClientSchema, type BeaconClient } from './beacon.schema';
 import { InputValidationError } from '../../common/validation/input-validation';
 import { address, minimalClient } from '../../testing/factories';
 
-function validateBeacon(input: BeaconPayload | unknown): BeaconClient {
+function validateBeacon(input: unknown): BeaconClient {
   return beaconClientSchema.parse(input);
 }
 
-function normalisePayload(input: BeaconPayload | unknown) {
+function normalisePayload(input: unknown) {
   return normaliseValidatedBeacon(validateBeacon(input));
 }
 
@@ -61,33 +61,33 @@ describe('Beacon literal fixture', () => {
     const result = normalisePayload(fixture);
 
     expect(result).toEqual({
-      id: 'c0ffee7a-1e4b-2c9d-3e00-000000000001',
-      title: 'Mrs',
-      first_name: 'Priya',
-      middle_names: null,
-      last_name: 'Chandra-Bose',
-      full_name: 'Priya Chandra-Bose',
-      date_of_birth: '1985-07-02',
-      ni_number: 'QQ123456C',
-      legal_sex: 'female',
-      marital_status: 'cohabiting',
-      nationality: 'United Kingdom',
       addresses: [
         {
-          primary: true,
+          country: 'GB',
+          county: 'Greater London',
           line1: 'Flat 4, 12 Vereker Road',
           line2: null,
-          town_city: 'London',
-          county: 'Greater London',
-          postcode: 'W14 9JR',
-          country: 'GB',
           move_in_date: null,
+          postcode: 'W14 9JR',
+          primary: true,
+          town_city: 'London',
         },
       ],
       contact_details: [
-        { type: 'email', value: 'priya.cb@example.co.uk', primary: true },
-        { type: 'mobile', value: '+447700900123', primary: true },
+        { primary: true, type: 'email', value: 'priya.cb@example.co.uk' },
+        { primary: true, type: 'mobile', value: '+447700900123' },
       ],
+      date_of_birth: '1985-07-02',
+      first_name: 'Priya',
+      full_name: 'Priya Chandra-Bose',
+      id: 'c0ffee7a-1e4b-2c9d-3e00-000000000001',
+      last_name: 'Chandra-Bose',
+      legal_sex: 'female',
+      marital_status: 'cohabiting',
+      middle_names: null,
+      nationality: 'United Kingdom',
+      ni_number: 'QQ123456C',
+      title: 'Mrs',
     });
     expect(canonicalClientSchema.parse(result)).toEqual(result);
     expect(fixture).toEqual(before);
@@ -112,8 +112,8 @@ describe('Beacon enums', () => {
       typeof value === 'string' ? ` ${value.toUpperCase()} ` : value,
     ]) {
       const beaconInput: BeaconPayload = {
-        recordId: '1',
         formattedValues: [{ key: 'gendercode', value: label }],
+        recordId: '1',
       };
 
       expect(normalisePayload(beaconInput).legal_sex).toBe(expected);
@@ -141,8 +141,8 @@ describe('Beacon enums', () => {
       typeof value === 'string' ? ` ${value.toUpperCase()} ` : value,
     ]) {
       const beaconInput: BeaconPayload = {
-        recordId: '1',
         formattedValues: [{ key: 'familystatuscode', value: label }],
+        recordId: '1',
       };
 
       expect(normalisePayload(beaconInput).marital_status).toBe(expected);
@@ -160,18 +160,18 @@ describe('Beacon enums', () => {
     [undefined, 'other'],
   ])('maps contact type %j', (type, expected) => {
     const beaconInput: BeaconPayload = {
-      recordId: '1',
       contacts: [{ type, value: ' 07700 900123 ' }],
+      recordId: '1',
     };
 
     expect(normalisePayload(beaconInput).contact_details).toEqual([
       {
+        primary: false,
         type: expected,
         value:
           expected === 'mobile' || expected === 'telephone'
             ? '+447700900123'
             : '07700 900123',
-        primary: false,
       },
     ]);
   });
@@ -185,11 +185,11 @@ describe('Beacon bags', () => {
       const extendedBeaconInput: WithAdditionalFields<
         BeaconPayload<FixtureValue>
       > = {
-        recordId: ` ${expected.id} `,
-        attributes: items,
-        formattedValues: items,
         addresses: items,
+        attributes: items,
         contacts: items,
+        formattedValues: items,
+        recordId: ` ${expected.id} `,
       };
 
       expect(normalisePayload(extendedBeaconInput)).toEqual(expected);
@@ -200,7 +200,6 @@ describe('Beacon bags', () => {
     'uses last duplicate text value %j in each bag',
     (last) => {
       const beaconInput: BeaconPayload = {
-        recordId: '1',
         attributes: [
           { key: 'firstname', value: 'First' },
           { key: 'firstname', value: last },
@@ -209,6 +208,7 @@ describe('Beacon bags', () => {
           { key: 'title', value: 'Dr' },
           { key: 'title', value: last },
         ],
+        recordId: '1',
       };
 
       const result = normalisePayload(beaconInput);
@@ -220,7 +220,6 @@ describe('Beacon bags', () => {
 
   it('applies last-wins to dates and labels too, including null', () => {
     const beaconInput: BeaconPayload = {
-      recordId: '1',
       attributes: [
         { key: 'birthdate', value: '29/02/2024' },
         { key: 'birthdate', value: null },
@@ -231,6 +230,7 @@ describe('Beacon bags', () => {
         { key: 'familystatuscode', value: 'Single' },
         { key: 'familystatuscode', value: 'Intend to Marry' },
       ],
+      recordId: '1',
     };
 
     const result = normalisePayload(beaconInput);
@@ -247,14 +247,14 @@ describe('Beacon bags', () => {
     const extendedBeaconInput: WithAdditionalFields<
       BeaconPayload<FixtureValue>
     > = {
-      recordId: expected.id,
       attributes: [
         ...formatted.map((key) => ({ key, value: 42 })),
         { key: '__proto__', value: {} },
         { key: 'future', value: [1] },
       ],
-      formattedValues: attributes.map((key) => ({ key, value: false })),
       extra: 42,
+      formattedValues: attributes.map((key) => ({ key, value: false })),
+      recordId: expected.id,
     };
 
     expect(normalisePayload(extendedBeaconInput)).toEqual(expected);
@@ -262,17 +262,16 @@ describe('Beacon bags', () => {
 
   it('cleans text and keys, normalises names/NI/nationality, and parses exact dates', () => {
     const expected = minimalClient({
-      title: 'Dr',
-      first_name: 'Priya',
-      middle_names: 'Anne  Mary',
-      last_name: 'Bose',
-      full_name: 'Priya Anne Mary Bose',
       date_of_birth: '2024-02-29',
-      ni_number: 'QQ123456C',
+      first_name: 'Priya',
+      full_name: 'Priya Anne Mary Bose',
+      last_name: 'Bose',
+      middle_names: 'Anne  Mary',
       nationality: 'Martian',
+      ni_number: 'QQ123456C',
+      title: 'Dr',
     });
     const beaconInput: BeaconPayload = {
-      recordId: expected.id,
       attributes: [
         { key: ' firstname ', value: ' Priya ' },
         { key: 'middlename', value: ' Anne  Mary ' },
@@ -282,6 +281,7 @@ describe('Beacon bags', () => {
         { key: 't4a_nationality', value: ' Martian ' },
       ],
       formattedValues: [{ key: 'title', value: ' Dr ' }],
+      recordId: expected.id,
     };
 
     expect(normalisePayload(beaconInput)).toEqual(expected);
@@ -290,9 +290,9 @@ describe('Beacon bags', () => {
   it('cleans all recognized blank values to null/defaults', () => {
     const expected = minimalClient();
     const beaconInput: BeaconPayload = {
-      recordId: expected.id,
       attributes: attributes.map((key) => ({ key, value: ' ' })),
       formattedValues: formatted.map((key) => ({ key, value: null })),
+      recordId: expected.id,
     };
 
     expect(normalisePayload(beaconInput)).toEqual(expected);
@@ -310,8 +310,8 @@ describe('Beacon addresses and contacts', () => {
     [undefined, false],
   ])('parses primary %j strictly', (primary, expected) => {
     const beaconInput: BeaconPayload = {
-      recordId: '1',
       addresses: [{ primary }],
+      recordId: '1',
     };
 
     expect(normalisePayload(beaconInput).addresses).toEqual([
@@ -323,31 +323,31 @@ describe('Beacon addresses and contacts', () => {
     const extendedBeaconInput: WithAdditionalFields<
       BeaconPayload<FixtureValue>
     > = {
-      recordId: '1',
       addresses: [
         {
+          city: ' London ',
+          country: ' gbr ',
+          county: ' County ',
           line1: ' Flat 4, 12 Road ',
           line2: ' Village ',
-          city: ' London ',
-          county: ' County ',
-          postcode: ' w14 9jr ',
-          country: ' gbr ',
-          primary: 'false',
           movedIn: '2024-01-01',
+          postcode: ' w14 9jr ',
+          primary: 'false',
         },
-        { line1: ' Second ', country: 'Atlantis', primary: true },
+        { country: 'Atlantis', line1: ' Second ', primary: true },
         {},
       ],
+      recordId: '1',
     };
 
     expect(normalisePayload(extendedBeaconInput).addresses).toEqual([
       address({
+        country: 'GB',
+        county: 'County',
         line1: 'Flat 4, 12 Road',
         line2: 'Village',
-        town_city: 'London',
-        county: 'County',
         postcode: 'W14 9JR',
-        country: 'GB',
+        town_city: 'London',
       }),
       address({ line1: 'Second', primary: true }),
       address(),
@@ -358,23 +358,23 @@ describe('Beacon addresses and contacts', () => {
     const extendedBeaconInput: WithAdditionalFields<
       BeaconPayload<FixtureValue>
     > = {
-      recordId: '1',
       contacts: [
         {},
         { value: null },
         { value: ' ' },
-        { type: 3, value: ' 020 7900 1234 ', isPrimary: true },
+        { isPrimary: true, type: 3, value: ' 020 7900 1234 ' },
         { type: 2, value: '07700 900123 ext 2' },
-        { type: 99, value: ' fax ', isPrimary: true },
-        { type: 1, value: ' a@example.org ', extra: {} },
+        { isPrimary: true, type: 99, value: ' fax ' },
+        { extra: {}, type: 1, value: ' a@example.org ' },
       ],
+      recordId: '1',
     };
 
     expect(normalisePayload(extendedBeaconInput).contact_details).toEqual([
-      { type: 'telephone', value: '+442079001234', primary: true },
-      { type: 'mobile', value: '07700 900123 ext 2', primary: false },
-      { type: 'other', value: 'fax', primary: true },
-      { type: 'email', value: 'a@example.org', primary: false },
+      { primary: true, type: 'telephone', value: '+442079001234' },
+      { primary: false, type: 'mobile', value: '07700 900123 ext 2' },
+      { primary: true, type: 'other', value: 'fax' },
+      { primary: false, type: 'email', value: 'a@example.org' },
     ]);
   });
 });
@@ -398,16 +398,16 @@ describe('Beacon classified validation errors', () => {
     'rejects malformed %s collections/items',
     (bag) => {
       const malformedBeaconInput: MalformedBeaconPayload = {
-        recordId: '1',
         [bag]: {},
+        recordId: '1',
       };
 
       invalid(malformedBeaconInput, [bag]);
 
       for (const item of [null, 42, [], 'bad']) {
         const malformedBeaconInput: MalformedBeaconPayload = {
-          recordId: '1',
           [bag]: [item],
+          recordId: '1',
         };
 
         invalid(malformedBeaconInput, [bag, 0]);
@@ -422,8 +422,8 @@ describe('Beacon classified validation errors', () => {
 
       for (const key of [undefined, null, '', ' ', 42, emptyInput]) {
         const malformedBeaconInput: MalformedBeaconPayload = {
-          recordId: '1',
           [bag]: [{ key, value: null }],
+          recordId: '1',
         };
 
         invalid(malformedBeaconInput, [bag, 0, 'key']);
@@ -436,8 +436,8 @@ describe('Beacon classified validation errors', () => {
 
     for (const value of [42, false, emptyInput, []]) {
       const malformedBeaconInput: MalformedBeaconPayload = {
-        recordId: '1',
         attributes: [{ key, value }],
+        recordId: '1',
       };
 
       invalid(malformedBeaconInput, ['attributes', 0, 'value']);
@@ -451,8 +451,8 @@ describe('Beacon classified validation errors', () => {
 
       for (const value of [42, false, emptyInput, []]) {
         const malformedBeaconInput: MalformedBeaconPayload = {
-          recordId: '1',
           formattedValues: [{ key, value }],
+          recordId: '1',
         };
 
         invalid(malformedBeaconInput, ['formattedValues', 0, 'value']);
@@ -462,11 +462,11 @@ describe('Beacon classified validation errors', () => {
 
   it('validates malformed present values even in superseded duplicates', () => {
     const malformedBeaconInput: MalformedBeaconPayload = {
-      recordId: '1',
       attributes: [
         { key: 'firstname', value: 42 },
         { key: 'firstname', value: null },
       ],
+      recordId: '1',
     };
 
     invalid(malformedBeaconInput, ['attributes', 0, 'value']);
@@ -480,11 +480,11 @@ describe('Beacon classified validation errors', () => {
     '02/07/1985T00:00:00Z',
   ])('rejects invalid birthdate %s with its original index', (value) => {
     const beaconInput: BeaconPayload = {
-      recordId: '1',
       attributes: [
         { key: 'firstname', value: 'Priya' },
         { key: 'birthdate', value },
       ],
+      recordId: '1',
     };
 
     invalid(beaconInput, ['attributes', 1, 'value']);
@@ -494,8 +494,8 @@ describe('Beacon classified validation errors', () => {
     'rejects invalid address %s',
     (key) => {
       const malformedBeaconInput: MalformedBeaconPayload = {
-        recordId: '1',
         addresses: [{ [key]: 42 }],
+        recordId: '1',
       };
 
       invalid(malformedBeaconInput, ['addresses', 0, key]);
@@ -506,8 +506,8 @@ describe('Beacon classified validation errors', () => {
     'rejects invalid address boolean %j',
     (primary) => {
       const malformedBeaconInput: MalformedBeaconPayload = {
-        recordId: '1',
         addresses: [{ primary }],
+        recordId: '1',
       };
 
       invalid(malformedBeaconInput, ['addresses', 0, 'primary']);
@@ -518,8 +518,8 @@ describe('Beacon classified validation errors', () => {
     'rejects invalid contact boolean %j',
     (isPrimary) => {
       const malformedBeaconInput: MalformedBeaconPayload = {
-        recordId: '1',
         contacts: [{ isPrimary }],
+        recordId: '1',
       };
 
       invalid(malformedBeaconInput, ['contacts', 0, 'isPrimary']);
@@ -530,8 +530,8 @@ describe('Beacon classified validation errors', () => {
     'rejects invalid contact type %j',
     (type) => {
       const malformedBeaconInput: MalformedBeaconPayload = {
-        recordId: '1',
         contacts: [{ type }],
+        recordId: '1',
       };
 
       invalid(malformedBeaconInput, ['contacts', 0, 'type']);
@@ -542,8 +542,8 @@ describe('Beacon classified validation errors', () => {
     'rejects non-string contact value %j',
     (value) => {
       const malformedBeaconInput: MalformedBeaconPayload = {
-        recordId: '1',
         contacts: [{ value }],
+        recordId: '1',
       };
 
       invalid(malformedBeaconInput, ['contacts', 0, 'value']);

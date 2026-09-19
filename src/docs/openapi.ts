@@ -41,19 +41,19 @@ const ref = (name: string): OpenAPIV3.ReferenceObject => ({
 });
 
 const schemaOptions: ConversionConfig = {
-  target: 'openapi-3.0' as const,
   errorMode: 'ignore' as const,
+  target: 'openapi-3.0' as const,
 };
 
 const errorResponse = (description: string): OpenAPIV3.ResponseObject => ({
-  description,
   content: {
     'application/json': { schema: ref('ErrorResponse') },
   },
+  description,
 });
 
 function fallbackRequestSchema(): OpenAPIV3.SchemaObject {
-  return { type: 'object', additionalProperties: true };
+  return { additionalProperties: true, type: 'object' };
 }
 
 function operationPath(provider: string, operation: string): string {
@@ -88,53 +88,44 @@ function operationDocument(
   const buildRequest = operation === 'build-request';
 
   return {
-    operationId: toOperationId(provider, operation),
-    summary:
-      documentation?.summary ??
-      (buildRequest
-        ? 'Build a simulated Cosper request'
-        : `Normalise a ${provider} client payload`),
     description:
       documentation?.description ??
       (buildRequest
         ? 'Cosper creation is simulated; no outbound provider call is made.'
         : 'Validates raw provider JSON, then returns the canonical Client projection. Mappings can be lossy.'),
+    operationId: toOperationId(provider, operation),
     parameters: [
       {
-        name: 'provider',
         in: 'path',
+        name: 'provider',
         required: true,
-        schema: { type: 'string', minLength: 1 },
+        schema: { minLength: 1, type: 'string' },
       },
       {
-        name: 'operation',
         in: 'path',
+        name: 'operation',
         required: true,
-        schema: { type: 'string', minLength: 1 },
+        schema: { minLength: 1, type: 'string' },
       },
     ],
     requestBody: {
-      required: true,
       content: {
         'application/json': {
-          schema: documentation?.requestSchema
-            ? ref(documentation.requestSchema)
-            : fallbackRequestSchema(),
           examples: {
             sample: {
               summary: 'Synthetic request',
               value: documentation?.requestExample ?? {},
             },
           },
+          schema: documentation?.requestSchema
+            ? ref(documentation.requestSchema)
+            : fallbackRequestSchema(),
         },
       },
+      required: true,
     },
     responses: {
       '200': {
-        description:
-          documentation?.responseSchema === 'SimulatedCosperResponse'
-            ? 'Simulated Cosper response envelope'
-            : 'Canonical Client',
         content: {
           'application/json': {
             schema: documentation?.responseSchema
@@ -144,6 +135,10 @@ function operationDocument(
                 : ref('CanonicalClient'),
           },
         },
+        description:
+          documentation?.responseSchema === 'SimulatedCosperResponse'
+            ? 'Simulated Cosper response envelope'
+            : 'Canonical Client',
       },
       '400': errorResponse('Malformed JSON or unsupported operation'),
       '404': errorResponse('Unknown provider or route'),
@@ -151,6 +146,11 @@ function operationDocument(
       '422': errorResponse('Invalid request params, query or payload'),
       '500': errorResponse('Internal server error'),
     },
+    summary:
+      documentation?.summary ??
+      (buildRequest
+        ? 'Build a simulated Cosper request'
+        : `Normalise a ${provider} client payload`),
   };
 }
 
@@ -166,23 +166,6 @@ function convertedSchema(
 function components(): DocumentComponents {
   return {
     schemas: {
-      ProviderCapability: {
-        type: 'object',
-        required: ['slug', 'supports'],
-        additionalProperties: false,
-        properties: {
-          slug: { type: 'string', description: 'Registered provider slug.' },
-          supports: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Operations supported by this provider.',
-          },
-        },
-      },
-      CanonicalClient: {
-        ...convertedSchema(canonicalClientSchema.schema),
-        additionalProperties: false,
-      },
       AcornClient: {
         ...convertedSchema(acornClientSchema.schema),
         description:
@@ -193,70 +176,87 @@ function components(): DocumentComponents {
         description:
           'Raw Beacon JSON. Recognized bag values are validated even when superseded.',
       },
-      SimulatedCosperResponse: {
+      CanonicalClient: {
+        ...convertedSchema(canonicalClientSchema.schema),
+        additionalProperties: false,
+      },
+      ErrorIssue: {
+        properties: {
+          message: { type: 'string' },
+          path: {
+            items: { type: 'string' },
+            type: 'array',
+          },
+        },
+        required: ['path', 'message'],
         type: 'object',
-        required: ['provider', 'request', 'response', 'warnings'],
+      },
+      ErrorResponse: {
+        properties: {
+          error: {
+            properties: {
+              code: { type: 'string' },
+              issues: { items: ref('ErrorIssue'), type: 'array' },
+              message: { type: 'string' },
+            },
+            required: ['code', 'message'],
+            type: 'object',
+          },
+        },
+        required: ['error'],
+        type: 'object',
+      },
+      ProviderCapability: {
+        additionalProperties: false,
+        properties: {
+          slug: { description: 'Registered provider slug.', type: 'string' },
+          supports: {
+            description: 'Operations supported by this provider.',
+            items: { type: 'string' },
+            type: 'array',
+          },
+        },
+        required: ['slug', 'supports'],
+        type: 'object',
+      },
+      SimulatedCosperResponse: {
         properties: {
           provider: { enum: ['cosper'] },
           request: convertedSchema(cosperRequestSchema.schema),
           response: {
-            type: 'object',
-            required: ['simulated', 'status', 'clientRef'],
             properties: {
+              clientRef: { type: 'string' },
               simulated: { enum: [true] },
               status: { enum: ['created'] },
-              clientRef: { type: 'string' },
             },
+            required: ['simulated', 'status', 'clientRef'],
+            type: 'object',
           },
           warnings: {
-            type: 'array',
             items: {
-              type: 'object',
-              required: ['code', 'path', 'message'],
               properties: {
                 code: {
-                  type: 'string',
                   enum: [
                     'MARITAL_STATUS_UNREPRESENTABLE',
                     'MARITAL_STATUS_UNKNOWN',
                     'LEGAL_SEX_DEFAULTED',
                   ],
-                },
-                path: {
-                  type: 'array',
-                  items: { type: 'string' },
+                  type: 'string',
                 },
                 message: { type: 'string' },
+                path: {
+                  items: { type: 'string' },
+                  type: 'array',
+                },
               },
+              required: ['code', 'path', 'message'],
+              type: 'object',
             },
-          },
-        },
-      },
-      ErrorIssue: {
-        type: 'object',
-        required: ['path', 'message'],
-        properties: {
-          path: {
             type: 'array',
-            items: { type: 'string' },
           },
-          message: { type: 'string' },
         },
-      },
-      ErrorResponse: {
+        required: ['provider', 'request', 'response', 'warnings'],
         type: 'object',
-        required: ['error'],
-        properties: {
-          error: {
-            type: 'object',
-            required: ['code', 'message'],
-            properties: {
-              code: { type: 'string' },
-              message: { type: 'string' },
-              issues: { type: 'array', items: ref('ErrorIssue') },
-            },
-          },
-        },
       },
     },
   };
@@ -269,36 +269,36 @@ export function openApiDocument(
   const paths: OpenAPIV3.PathsObject = {
     '/health': {
       get: {
-        operationId: 'healthCheck',
         description: 'Liveness probe.',
+        operationId: 'healthCheck',
         responses: {
           '200': {
-            description: 'Service is healthy',
             content: {
               'application/json': json({
-                type: 'object',
-                required: ['status'],
                 properties: { status: { enum: ['ok'] } },
+                required: ['status'],
+                type: 'object',
               }),
             },
+            description: 'Service is healthy',
           },
         },
       },
     },
     '/v1/providers': {
       get: {
-        operationId: 'listProviders',
         description:
           'Lists registered providers and their supported operations.',
+        operationId: 'listProviders',
         responses: {
           '200': {
-            description: 'Registered provider capabilities',
             content: {
               'application/json': json({
-                type: 'array',
                 items: ref('ProviderCapability'),
+                type: 'array',
               }),
             },
+            description: 'Registered provider capabilities',
           },
         },
       },
@@ -318,16 +318,16 @@ export function openApiDocument(
   }
 
   return {
-    openapi: '3.0.3',
+    components: components(),
     info: {
-      title: 'ZeroKey integration service',
-      version: '1.0.0',
       description:
         'Provider normalisation and simulated Cosper request building. Capability checks happen before request-body parsing; Cosper creation is simulated.',
+      title: 'ZeroKey integration service',
+      version: '1.0.0',
     },
-    servers: [{ url: '/', description: 'Current server origin' }],
+    openapi: '3.0.3',
     paths,
-    components: components(),
+    servers: [{ description: 'Current server origin', url: '/' }],
   };
 }
 

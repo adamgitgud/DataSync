@@ -24,8 +24,8 @@ export class ClientsController implements ClientsControllerPort {
     context,
   ) => {
     const params = parseInput(providerParamsSchema, {
-      provider: context.req.param('provider') ?? '',
       operation: context.req.param('operation') ?? '',
+      provider: context.req.param('provider') ?? '',
     });
 
     const resolved = this.providerRegistry.findOperation(
@@ -35,31 +35,33 @@ export class ClientsController implements ClientsControllerPort {
 
     if (resolved === undefined) {
       if (this.providerRegistry.find(params.provider) === undefined) {
-        throw new HttpError(404, 'PROVIDER_NOT_FOUND', 'Provider not found');
+        throw new HttpError({
+          code: 'PROVIDER_NOT_FOUND',
+          message: 'Provider not found',
+          status: 404,
+        });
       }
 
-      throw new HttpError(
-        400,
-        'OPERATION_NOT_SUPPORTED',
-        `Provider ${params.provider} does not support ${params.operation}`,
-      );
+      throw new HttpError({
+        code: 'OPERATION_NOT_SUPPORTED',
+        message: `Provider ${params.provider} does not support ${params.operation}`,
+        status: 400,
+      });
     }
 
     const rawBody = await parseJsonBody(context);
 
-    const validated = validateProviderRequest(
-      resolved.definition,
-      params,
-      context.req.query(),
-      rawBody,
-    );
+    const validated = validateProviderRequest(resolved.definition, params, {
+      body: rawBody,
+      query: context.req.query(),
+    });
 
-    const result = await this.clientsService.execute(
-      resolved.provider.name,
-      params.operation,
-      validated.body,
-      validated.query,
-    );
+    const result = await this.clientsService.execute({
+      input: validated.body,
+      operation: params.operation,
+      provider: resolved.provider.name,
+      query: validated.query,
+    });
 
     return context.json(result);
   };

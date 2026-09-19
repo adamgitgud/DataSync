@@ -22,19 +22,19 @@ describe('ClientsService', () => {
 
             return {
               request: {
-                ClientRef: stubClientRef,
-                Forename: null,
-                Surname: null,
-                DateOfBirth: null,
-                Sex: 2,
-                MaritalStatus: 0,
                 AddressLine1: null,
                 AddressLine2: null,
-                Town: null,
-                Postcode: null,
+                ClientRef: stubClientRef,
                 Country: null,
+                DateOfBirth: null,
                 Email: null,
+                Forename: null,
+                MaritalStatus: 0,
+                Postcode: null,
+                Sex: 2,
+                Surname: null,
                 Telephone: null,
+                Town: null,
               },
               response: { simulated: true },
               warnings: [],
@@ -45,15 +45,15 @@ describe('ClientsService', () => {
     } as const;
 
     const service = new ClientsService({
-      list: () => [{ slug: 'cosper', supports: ['build-request'] }],
       find: (name) => (name === 'cosper' ? cosperCapability : undefined),
       findOperation: (name, operation) =>
         name === 'cosper' && operation === 'build-request'
           ? {
-              provider: cosperCapability,
               definition: cosperCapability.operations['build-request'],
+              provider: cosperCapability,
             }
           : undefined,
+      list: () => [{ slug: 'cosper', supports: ['build-request'] }],
     });
 
     expect(service.listProviders()).toEqual([
@@ -97,9 +97,9 @@ describe('ClientsService', () => {
 
   it('rejects missing or unsupported operations through the public methods', async () => {
     const service = new ClientsService({
-      list: () => [],
       find: () => undefined,
       findOperation: () => undefined,
+      list: () => [],
     });
     const emptyInput: Record<string, never> = {};
 
@@ -115,8 +115,8 @@ describe('ClientsService', () => {
 
     expect(missingError).toBeInstanceOf(OperationNotSupportedError);
     expect(asHttpError(missingError)).toMatchObject({
-      status: 400,
       code: 'OPERATION_NOT_SUPPORTED',
+      status: 400,
     });
   });
 
@@ -131,15 +131,15 @@ describe('ClientsService', () => {
     } as const;
 
     const service = new ClientsService({
-      list: () => [{ slug: 'acorn', supports: ['normalise'] }],
       find: (name) => (name === 'acorn' ? acornCapability : undefined),
       findOperation: (name, operation) =>
         name === 'acorn' && operation === 'normalise'
           ? {
-              provider: acornCapability,
               definition: acornCapability.operations.normalise,
+              provider: acornCapability,
             }
           : undefined,
+      list: () => [{ slug: 'acorn', supports: ['normalise'] }],
     });
 
     await expect(

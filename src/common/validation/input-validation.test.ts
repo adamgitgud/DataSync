@@ -17,45 +17,45 @@ describe('validation boundary', () => {
     const error = new InputValidationError({
       issues: [
         {
-          path: [pathKey, pathKey2],
           message: 'Bad contact',
+          path: [pathKey, pathKey2],
         },
         { path: [pathKey3] },
-        { path: [true], message: 'Boolean path item' },
+        { message: 'Boolean path item', path: [true] },
         {},
       ],
     });
     expect(error.name).toBe('InputValidationError');
     expect(error.message).toBe('Invalid request payload');
     expect(error.issues).toEqual([
-      { path: ['contacts', 2], message: 'Bad contact' },
-      { path: ['Symbol(field)'], message: 'Invalid value' },
-      { path: ['true'], message: 'Boolean path item' },
-      { path: [], message: 'Invalid value' },
+      { message: 'Bad contact', path: ['contacts', 2] },
+      { message: 'Invalid value', path: ['Symbol(field)'] },
+      { message: 'Boolean path item', path: ['true'] },
+      { message: 'Invalid value', path: [] },
     ]);
   });
 
   it('accepts application-owned issues and converts failed parses', () => {
     expect(new InputValidationError({}).issues).toEqual([]);
     expect(
-      new InputValidationError([{ path: ['id'], message: 'Required' }]).issues,
-    ).toEqual([{ path: ['id'], message: 'Required' }]);
+      new InputValidationError([{ message: 'Required', path: ['id'] }]).issues,
+    ).toEqual([{ message: 'Required', path: ['id'] }]);
     const schema: InputSchema<number> = {
       safeParse: (input: unknown) => {
         const pathKey: ValidationPathKey = { key: 0 };
 
         return input === 'ok'
-          ? { success: true as const, data: 42 }
+          ? { data: 42, success: true as const }
           : {
-              success: false as const,
               error: {
                 issues: [
                   {
-                    path: [pathKey],
                     message: 'Nope',
+                    path: [pathKey],
                   },
                 ],
               },
+              success: false as const,
             };
       },
     };
@@ -67,7 +67,7 @@ describe('validation boundary', () => {
     } catch (error) {
       expect(error).toBeInstanceOf(InputValidationError);
       expect((error as InputValidationError).issues).toEqual([
-        { path: [0], message: 'Nope' },
+        { message: 'Nope', path: [0] },
       ]);
     }
   });

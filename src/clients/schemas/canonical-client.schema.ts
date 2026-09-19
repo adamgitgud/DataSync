@@ -65,22 +65,22 @@ const uppercaseNiNumberText = valibot.pipe(
 );
 
 const canonicalAddressObject = valibot.object({
-  primary: valibot.boolean(),
+  country: valibot.nullable(countryCode),
+  county: nullableTrimmedText,
   line1: nullableTrimmedText,
   line2: nullableTrimmedText,
-  town_city: nullableTrimmedText,
-  county: nullableTrimmedText,
-  postcode: valibot.nullable(uppercasePostcodeText),
-  country: valibot.nullable(countryCode),
   move_in_date: valibot.nullable(canonicalCalendarDate),
+  postcode: valibot.nullable(uppercasePostcodeText),
+  primary: valibot.boolean(),
+  town_city: nullableTrimmedText,
 });
 
 export const canonicalAddressSchema = asCompatSchema(canonicalAddressObject);
 
 const canonicalContactObject = valibot.object({
+  primary: valibot.boolean(),
   type: contactTypeSchema.schema,
   value: trimmedNonEmptyText,
-  primary: valibot.boolean(),
 });
 
 export const canonicalContactDetailSchema = asCompatSchema(
@@ -88,19 +88,19 @@ export const canonicalContactDetailSchema = asCompatSchema(
 );
 
 const canonicalClientObject = valibot.object({
-  id: trimmedNonEmptyText,
-  title: nullableTrimmedText,
-  first_name: nullableTrimmedText,
-  middle_names: nullableTrimmedText,
-  last_name: nullableTrimmedText,
-  full_name: nullableTrimmedText,
-  date_of_birth: valibot.nullable(canonicalCalendarDate),
-  ni_number: valibot.nullable(uppercaseNiNumberText),
-  legal_sex: valibot.nullable(legalSexSchema.schema),
-  marital_status: maritalStatusSchema.schema,
-  nationality: nullableTrimmedText,
   addresses: valibot.array(canonicalAddressObject),
   contact_details: valibot.array(canonicalContactObject),
+  date_of_birth: valibot.nullable(canonicalCalendarDate),
+  first_name: nullableTrimmedText,
+  full_name: nullableTrimmedText,
+  id: trimmedNonEmptyText,
+  last_name: nullableTrimmedText,
+  legal_sex: valibot.nullable(legalSexSchema.schema),
+  marital_status: maritalStatusSchema.schema,
+  middle_names: nullableTrimmedText,
+  nationality: nullableTrimmedText,
+  ni_number: valibot.nullable(uppercaseNiNumberText),
+  title: nullableTrimmedText,
 });
 
 export const canonicalClientSchema = asCompatSchema(canonicalClientObject);
@@ -125,18 +125,18 @@ export type CanonicalClient = valibot.InferOutput<typeof canonicalClientObject>;
 
 export function createEmptyCanonicalClient(): CanonicalClient {
   return {
-    id: 'UNKNOWN',
-    title: null,
-    first_name: null,
-    middle_names: null,
-    last_name: null,
-    full_name: null,
-    date_of_birth: null,
-    ni_number: null,
-    legal_sex: null,
-    marital_status: 'unknown',
-    nationality: null,
     addresses: [],
     contact_details: [],
+    date_of_birth: null,
+    first_name: null,
+    full_name: null,
+    id: 'UNKNOWN',
+    last_name: null,
+    legal_sex: null,
+    marital_status: 'unknown',
+    middle_names: null,
+    nationality: null,
+    ni_number: null,
+    title: null,
   };
 }

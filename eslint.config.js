@@ -1,5 +1,6 @@
 // @ts-check
 import stylistic from '@stylistic/eslint-plugin';
+import perfectionist from 'eslint-plugin-perfectionist';
 import prettierRecommended from 'eslint-plugin-prettier/recommended';
 import tseslint from 'typescript-eslint';
 
@@ -22,13 +23,22 @@ export default tseslint.config(
   },
   {
     files: ['**/*.ts'],
-    extends: [tseslint.configs.recommended, tseslint.configs.stylistic],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+    extends: [
+      tseslint.configs.recommendedTypeChecked,
+      tseslint.configs.stylisticTypeChecked,
+    ],
   },
   prettierRecommended,
   {
     files: ['**/*.ts'],
     plugins: {
       '@stylistic': stylistic,
+      perfectionist,
     },
     rules: {
       '@stylistic/lines-between-class-members': ['error', 'always'],
@@ -40,6 +50,10 @@ export default tseslint.config(
         { blankLine: 'never', prev: 'import', next: 'import' },
       ],
       curly: ['error', 'all'],
+      'max-params': ['error', 3],
+      'perfectionist/sort-objects': 'error',
+      'perfectionist/sort-interfaces': 'error',
+      'perfectionist/sort-object-types': 'error',
     },
   },
 );

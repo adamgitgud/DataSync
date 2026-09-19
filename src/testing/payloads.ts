@@ -31,9 +31,9 @@ export type BeaconPayload<TValue = string | null> = Omit<
   'recordId' | 'attributes' | 'formattedValues' | 'addresses'
 > &
   Pick<BeaconClient, 'recordId'> & {
+    addresses?: BeaconAddressPayload[] | null | undefined;
     attributes?: BeaconBagEntry<TValue>[] | null | undefined;
     formattedValues?: BeaconBagEntry<TValue>[] | null | undefined;
-    addresses?: BeaconAddressPayload[] | null | undefined;
   };
 
 export type FixtureValue =

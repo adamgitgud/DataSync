@@ -6,28 +6,28 @@ import {
 import { cleanText } from './text';
 
 interface Country {
+  readonly aliases: readonly string[];
   readonly alpha2: string;
   readonly alpha3: string;
   readonly name: string;
-  readonly aliases: readonly string[];
 }
 
 export const countries = [
   {
+    aliases: ['UK', 'England', 'Scotland', 'Wales', 'Northern Ireland'],
     alpha2: 'GB',
     alpha3: 'GBR',
     name: 'United Kingdom',
-    aliases: ['UK', 'England', 'Scotland', 'Wales', 'Northern Ireland'],
   },
-  { alpha2: 'IE', alpha3: 'IRL', name: 'Ireland', aliases: [] },
-  { alpha2: 'US', alpha3: 'USA', name: 'United States', aliases: [] },
-  { alpha2: 'FR', alpha3: 'FRA', name: 'France', aliases: [] },
-  { alpha2: 'DE', alpha3: 'DEU', name: 'Germany', aliases: [] },
-  { alpha2: 'CA', alpha3: 'CAN', name: 'Canada', aliases: [] },
-  { alpha2: 'AU', alpha3: 'AUS', name: 'Australia', aliases: [] },
-  { alpha2: 'NZ', alpha3: 'NZL', name: 'New Zealand', aliases: [] },
-  { alpha2: 'IN', alpha3: 'IND', name: 'India', aliases: [] },
-  { alpha2: 'ES', alpha3: 'ESP', name: 'Spain', aliases: [] },
+  { aliases: [], alpha2: 'IE', alpha3: 'IRL', name: 'Ireland' },
+  { aliases: [], alpha2: 'US', alpha3: 'USA', name: 'United States' },
+  { aliases: [], alpha2: 'FR', alpha3: 'FRA', name: 'France' },
+  { aliases: [], alpha2: 'DE', alpha3: 'DEU', name: 'Germany' },
+  { aliases: [], alpha2: 'CA', alpha3: 'CAN', name: 'Canada' },
+  { aliases: [], alpha2: 'AU', alpha3: 'AUS', name: 'Australia' },
+  { aliases: [], alpha2: 'NZ', alpha3: 'NZL', name: 'New Zealand' },
+  { aliases: [], alpha2: 'IN', alpha3: 'IND', name: 'India' },
+  { aliases: [], alpha2: 'ES', alpha3: 'ESP', name: 'Spain' },
 ] as const satisfies readonly Country[];
 
 export type CountryCode = (typeof countries)[number]['alpha2'];

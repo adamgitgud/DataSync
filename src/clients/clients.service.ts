@@ -1,6 +1,7 @@
 import type {
   BuildRequestResult,
   ClientsServicePort,
+  ExecuteOperationArgs,
   ProviderRegistryPort,
   ResolvedProviderOperation,
 } from './clients.interfaces';
@@ -35,25 +36,26 @@ export class ClientsService implements ClientsServicePort {
     return this.providerRegistry.list();
   }
 
-  async execute(
-    providerName: string,
-    operation: string,
-    input: unknown,
-    query?: unknown,
-  ): Promise<unknown> {
-    return this.run<unknown>(providerName, operation, input, query);
+  async execute(args: ExecuteOperationArgs): Promise<unknown> {
+    return this.run<unknown>(args);
   }
 
   async normalise(providerName: string, input: unknown) {
-    return this.run<CanonicalClient>(providerName, 'normalise', input);
+    return this.run<CanonicalClient>({
+      input,
+      operation: 'normalise',
+      provider: providerName,
+      query: undefined,
+    });
   }
 
   async buildRequest(providerName: string, input: unknown) {
-    const formatted = await this.run<unknown>(
-      providerName,
-      'build-request',
+    const formatted = await this.run<unknown>({
       input,
-    );
+      operation: 'build-request',
+      provider: providerName,
+      query: undefined,
+    });
 
     if (!isBuildRequestResult(formatted)) {
       throw new InvalidBuildResultError();
@@ -62,16 +64,11 @@ export class ClientsService implements ClientsServicePort {
     return formatted;
   }
 
-  private async run<TResult>(
-    providerName: string,
-    operation: string,
-    input: unknown,
-    query?: unknown,
-  ): Promise<TResult> {
-    const { definition } = this.resolve(providerName, operation);
-    const result = await definition.execute(input, query);
+  private async run<TResult>(args: ExecuteOperationArgs): Promise<TResult> {
+    const { definition } = this.resolve(args.provider, args.operation);
+    const result = await definition.execute(args.input, args.query);
 
-    return (definition.formatResult?.(providerName, result) ??
+    return (definition.formatResult?.(args.provider, result) ??
       result) as TResult;
   }
 

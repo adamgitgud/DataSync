@@ -8,12 +8,14 @@ import { ClientsController } from './clients/clients.controller';
 import { createDependencies } from './app.dependencies';
 import { minimalClient } from './testing/factories';
 
-async function listProvidersViaHttp(controller: ClientsControllerPort) {
+async function listProvidersViaHttp(
+  controller: ClientsControllerPort,
+): Promise<unknown> {
   const testApp = new Hono();
 
   testApp.get('/v1/providers', controller.listProviders);
 
-  return (await testApp.request('/v1/providers')).json();
+  return (await testApp.request('/v1/providers')).json() as unknown;
 }
 
 describe('createDependencies', () => {
@@ -25,8 +27,8 @@ describe('createDependencies', () => {
     expect(dependencies.providerRegistry.find('acorn')?.name).toBe('acorn');
     expect(() =>
       dependencies.logger.error('test error', {
-        path: '/test',
         method: 'GET',
+        path: '/test',
       }),
     ).not.toThrow();
   });
@@ -56,36 +58,36 @@ describe('createDependencies', () => {
   it('honors explicit service and controller replacements', async () => {
     const stubId = 'fake';
     const clientsService: ClientsServicePort = {
-      listProviders: () => [
-        { slug: 'acorn', supports: ['normalise'] as const },
-      ],
-      normalise: () => minimalClient({ id: stubId }),
       buildRequest: () => ({
         request: { ClientRef: stubId },
         response: { simulated: true as const },
         warnings: [],
       }),
       execute: () => minimalClient({ id: stubId }),
+      listProviders: () => [
+        { slug: 'acorn', supports: ['normalise'] as const },
+      ],
+      normalise: () => minimalClient({ id: stubId }),
     };
     const acornCapability = {
       name: 'acorn',
       operations: { normalise: { execute: () => ({}) } },
     } as const;
     const clientsController = new ClientsController(clientsService, {
-      list: () => [{ slug: 'acorn', supports: ['normalise'] }],
       find: (name) => (name === 'acorn' ? acornCapability : undefined),
       findOperation: (name, operation) =>
         name === 'acorn' && operation === 'normalise'
           ? {
-              provider: acornCapability,
               definition: acornCapability.operations.normalise,
+              provider: acornCapability,
             }
           : undefined,
+      list: () => [{ slug: 'acorn', supports: ['normalise'] }],
     });
 
     const dependencies = createDependencies({
-      clientsService,
       clientsController,
+      clientsService,
     });
 
     expect(dependencies.clientsService).toBe(clientsService);

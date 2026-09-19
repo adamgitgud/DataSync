@@ -52,7 +52,7 @@ export function sourceDateSchema(
   return asCompatSchema(
     valibot.pipe(
       sourceTextSchema.schema,
-      valibot.rawTransform(({ dataset, addIssue, NEVER }) => {
+      valibot.rawTransform(({ addIssue, dataset, NEVER }) => {
         if (dataset.value === null) {
           return null;
         }

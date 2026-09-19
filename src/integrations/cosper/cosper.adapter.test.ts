@@ -8,47 +8,47 @@ import { address, contact, minimalClient } from '../../testing/factories';
 describe('Cosper request builder', () => {
   it('builds the complete Acorn-derived request with every key', () => {
     const client = minimalClient({
-      id: '90210',
-      first_name: 'Priya',
-      last_name: 'Chandra-Bose',
-      date_of_birth: '1985-07-02',
-      legal_sex: 'female',
-      marital_status: 'cohabiting',
       addresses: [
         address({
-          primary: true,
+          country: 'GB',
           line1: 'Flat 4',
           line2: '12 Vereker Road',
-          town_city: 'London',
           postcode: 'W14 9JR',
-          country: 'GB',
+          primary: true,
+          town_city: 'London',
         }),
       ],
       contact_details: [
         contact('email', 'priya.cb@example.co.uk', true),
         contact('mobile', '+447700900123', true),
       ],
+      date_of_birth: '1985-07-02',
+      first_name: 'Priya',
+      id: '90210',
+      last_name: 'Chandra-Bose',
+      legal_sex: 'female',
+      marital_status: 'cohabiting',
     });
 
     const result = buildCosperRequest(client);
 
     expect(result).toEqual({
-      response: { simulated: true, status: 'created', clientRef: '90210' },
       request: {
-        ClientRef: '90210',
-        Forename: 'Priya',
-        Surname: 'Chandra-Bose',
-        DateOfBirth: '02/07/1985',
-        Sex: 1,
-        MaritalStatus: 3,
         AddressLine1: 'Flat 4',
         AddressLine2: '12 Vereker Road',
-        Town: 'London',
-        Postcode: 'W14 9JR',
+        ClientRef: '90210',
         Country: 'United Kingdom',
+        DateOfBirth: '02/07/1985',
         Email: 'priya.cb@example.co.uk',
+        Forename: 'Priya',
+        MaritalStatus: 3,
+        Postcode: 'W14 9JR',
+        Sex: 1,
+        Surname: 'Chandra-Bose',
         Telephone: '+44 7700 900123',
+        Town: 'London',
       },
+      response: { clientRef: '90210', simulated: true, status: 'created' },
       warnings: [],
     });
     expect(Object.keys(result.request)).toHaveLength(13);
@@ -91,34 +91,34 @@ describe('Cosper request builder', () => {
   it('returns warnings for engaged, unknown and null sex', () => {
     expect(
       buildCosperRequest(
-        minimalClient({ marital_status: 'engaged', legal_sex: null }),
+        minimalClient({ legal_sex: null, marital_status: 'engaged' }),
       ).warnings,
     ).toEqual([
       {
         code: 'MARITAL_STATUS_UNREPRESENTABLE',
-        path: ['marital_status'],
         message: 'Cosper has no engaged status; encoded as 0',
+        path: ['marital_status'],
       },
       {
         code: 'LEGAL_SEX_DEFAULTED',
-        path: ['legal_sex'],
         message: 'Legal sex is absent; encoded as Cosper code 2',
+        path: ['legal_sex'],
       },
     ]);
     expect(
       buildCosperRequest(
-        minimalClient({ marital_status: 'unknown', legal_sex: 'other' }),
+        minimalClient({ legal_sex: 'other', marital_status: 'unknown' }),
       ).warnings,
     ).toEqual([
       {
         code: 'MARITAL_STATUS_UNKNOWN',
-        path: ['marital_status'],
         message: 'Marital status is unknown; encoded as Cosper code 0',
+        path: ['marital_status'],
       },
     ]);
     expect(
       buildCosperRequest(
-        minimalClient({ marital_status: 'single', legal_sex: 'other' }),
+        minimalClient({ legal_sex: 'other', marital_status: 'single' }),
       ).warnings,
     ).toEqual([]);
   });
@@ -128,7 +128,7 @@ describe('Cosper request builder', () => {
       minimalClient({
         addresses: [
           address({ line1: 'first' }),
-          address({ primary: true, line1: 'primary', country: 'IE' }),
+          address({ country: 'IE', line1: 'primary', primary: true }),
         ],
         contact_details: [
           contact('mobile', 'mobile'),
@@ -148,19 +148,19 @@ describe('Cosper request builder', () => {
     const defaultClient = minimalClient();
 
     expect(buildCosperRequest(defaultClient).request).toEqual({
-      ClientRef: defaultClient.id,
-      Forename: null,
-      Surname: null,
-      DateOfBirth: null,
-      Sex: 2,
-      MaritalStatus: 0,
       AddressLine1: null,
       AddressLine2: null,
-      Town: null,
-      Postcode: null,
+      ClientRef: defaultClient.id,
       Country: null,
+      DateOfBirth: null,
       Email: null,
+      Forename: null,
+      MaritalStatus: 0,
+      Postcode: null,
+      Sex: 2,
+      Surname: null,
       Telephone: null,
+      Town: null,
     });
   });
 
