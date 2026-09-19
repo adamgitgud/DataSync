@@ -7,7 +7,7 @@ export interface CloseableServer {
 }
 
 export function announceListening(info: { port: number }) {
-  console.log(`ZeroKey listening on http://${resolveHost()}:${info.port}`);
+  console.log(`DataSync listening on http://${resolveHost()}:${info.port}`);
 }
 
 export function registerShutdownHandlers(server: CloseableServer) {

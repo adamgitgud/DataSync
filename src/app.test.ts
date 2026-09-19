@@ -223,7 +223,7 @@ describe('HTTP registry routes', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0] ?? throwInvariant('Expected a logged call')).toMatchObject({
       context: { method: 'POST', path: '/v1/acorn/clients/normalise' },
-      message: 'Unexpected ZeroKey error',
+      message: 'Unexpected error',
     });
     expect(calls[0]?.context).toHaveProperty('error');
     expect(JSON.stringify(calls)).not.toContain('private');

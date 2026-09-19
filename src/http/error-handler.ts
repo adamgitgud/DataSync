@@ -25,7 +25,7 @@ export function registerErrorHandling(
     const httpError = asHttpError(error);
 
     if (httpError.status === 500) {
-      context.get('dependencies').logger.error('Unexpected ZeroKey error', {
+      context.get('dependencies').logger.error('Unexpected error', {
         error:
           error instanceof Error
             ? { message: error.message, name: error.name, stack: error.stack }

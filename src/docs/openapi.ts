@@ -321,8 +321,8 @@ export function openApiDocument(
     components: components(),
     info: {
       description:
-        'Provider normalisation and simulated Cosper request building. Capability checks happen before request-body parsing; Cosper creation is simulated.',
-      title: 'ZeroKey integration service',
+        'Hono demo comparing Hono with Express.js and NestJS. Provider normalisation and simulated Cosper request building. Capability checks happen before request-body parsing; Cosper creation is simulated.',
+      title: 'DataSync integration service',
       version: '1.0.0',
     },
     openapi: '3.0.3',
