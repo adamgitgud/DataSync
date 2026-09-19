@@ -2,7 +2,9 @@ import type { AcornPayload, BeaconPayload } from '../testing/payloads';
 import { describe, expect, it } from 'vitest';
 import { throwInvariant } from '../common/errors/invariant';
 import { AcornAdapter } from './acorn/acorn.adapter';
+import { acornClientSchema } from './acorn/acorn.schema';
 import { BeaconAdapter } from './beacon/beacon.adapter';
+import { beaconClientSchema } from './beacon/beacon.schema';
 import { CosperAdapter } from './cosper/cosper.adapter';
 import { minimalClient } from '../testing/factories';
 import {
@@ -45,14 +47,14 @@ describe('provider registry', () => {
   it('exposes class-based capability adapters with explicit methods', () => {
     const acornInput: AcornPayload = { id: 7 };
 
-    expect(new AcornAdapter().normalise(acornInput).id).toBe(
-      String(acornInput.id).trim(),
-    );
+    expect(
+      new AcornAdapter().normalise(acornClientSchema.parse(acornInput)).id,
+    ).toBe(String(acornInput.id).trim());
     const beaconInput: BeaconPayload = { recordId: 'b-1' };
 
-    expect(new BeaconAdapter().normalise(beaconInput).id).toBe(
-      beaconInput.recordId.trim(),
-    );
+    expect(
+      new BeaconAdapter().normalise(beaconClientSchema.parse(beaconInput)).id,
+    ).toBe(beaconInput.recordId.trim());
     const defaultClient = minimalClient();
 
     expect(

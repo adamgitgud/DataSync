@@ -1,5 +1,4 @@
 import {
-  canonicalClientSchema,
   type CanonicalAddress,
   type CanonicalClient,
   type CanonicalContactDetail,
@@ -21,8 +20,7 @@ import {
   normaliseNi,
   normalisePostcode,
 } from '../../common/normalisation/text';
-import { parseInput } from '../../common/validation/input-validation';
-import { acornClientSchema, type AcornClient } from './acorn.schema';
+import { type AcornClient } from './acorn.schema';
 
 const channels = new Map<string, CanonicalContactDetail['type']>([
   ['emailaddress', 'email'],
@@ -51,9 +49,7 @@ function mapAddress(
   };
 }
 
-function normaliseAcornImplementation(input: unknown): CanonicalClient {
-  const source = parseInput(acornClientSchema, input);
-
+function normaliseAcornImplementation(source: AcornClient): CanonicalClient {
   const { person } = source;
   const contacts = mapContacts(source.contactPoints, (point) =>
     toCanonicalContact(
@@ -86,12 +82,12 @@ function normaliseAcornImplementation(input: unknown): CanonicalClient {
     contact_details: contacts,
   };
 
-  return canonicalClientSchema.parse(client);
+  return client;
 }
 
 export class AcornAdapter {
-  normalise(input: unknown): CanonicalClient {
-    return normaliseAcornImplementation(input);
+  normalise(source: AcornClient): CanonicalClient {
+    return normaliseAcornImplementation(source);
   }
 }
 

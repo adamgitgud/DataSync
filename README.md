@@ -63,12 +63,23 @@ Defined in `src/clients/schemas/canonical-client.schema.ts`, types inferred from
 
 ## Add a provider
 
-1. Add `src/integrations/<name>/<name>.schema.ts` + `<name>.adapter.ts` (pure, validate-then-map).
+1. Add `src/integrations/<name>/<name>.schema.ts` + `<name>.adapter.ts` (pure, typed `AcornClient`-style input → canonical output; no runtime validation inside — edge owns it).
 2. Register in `createBuiltInRegistry()` in `src/integrations/provider.registry.ts`:
 
 ```ts
-{ name: 'new-provider', operations: { normalise: { execute: adapter.normalise.bind(adapter) } } }
+{
+  name: 'new-provider',
+  operations: {
+    normalise: {
+      execute: adapter.normalise.bind(adapter),
+      bodySchema: newProviderSchema, // required: validates all external input (422) + narrows types + feeds swagger
+      documentation: { requestSchema: 'NewProvider', responseSchema: 'CanonicalClient', ... },
+    },
+  },
+}
 ```
+
+Validation rule: everything external (path params, query, JSON body) is validated at the edge via `bodySchema/querySchema`; trusted internal results are not re-validated unless it narrows types (`isBuildRequestResult`) or feeds swagger.
 
 No route changes — `GET /v1/providers` and `POST /v1/:provider/clients/:operation` derive from the registry.
 

@@ -1,5 +1,5 @@
 import {
-  canonicalClientSchema,
+  type CanonicalClient,
   type MaritalStatus,
 } from '../../clients/schemas/canonical-client.schema';
 import { countryName } from '../../common/normalisation/countries';
@@ -10,14 +10,8 @@ import {
   selectPhone,
 } from '../../common/normalisation/selection';
 import { toDayMonthYear } from '../../common/normalisation/dates';
-import {
-  InputValidationError,
-  parseInput,
-} from '../../common/validation/input-validation';
 import { throwInvariant } from '../../common/errors/invariant';
-import { InvalidBuildResultError } from '../../common/errors/domain.error';
 import {
-  cosperRequestSchema,
   type CosperBuildResult,
   type CosperRequest,
   type CosperWarning,
@@ -35,9 +29,9 @@ const maritalCodes: Record<MaritalStatus, CosperRequest['MaritalStatus']> = {
   unknown: 0,
 };
 
-function buildCosperRequestImplementation(input: unknown): CosperBuildResult {
-  const client = parseInput(canonicalClientSchema, input);
-
+function buildCosperRequestImplementation(
+  client: CanonicalClient,
+): CosperBuildResult {
   const address = selectAddress(client.addresses);
 
   const email = selectEmail(client.contact_details);
@@ -92,30 +86,16 @@ function buildCosperRequestImplementation(input: unknown): CosperBuildResult {
     Telephone: formatCosperPhone(phone?.value ?? null),
   };
 
-  let validated: CosperRequest;
-
-  try {
-    validated = cosperRequestSchema.parse(request);
-  } catch (error) {
-    if (error instanceof InputValidationError) {
-      throw new InvalidBuildResultError(
-        `Invalid Cosper request: ${error.issues.map((issue) => issue.message).join('; ')}`,
-      );
-    }
-
-    throw error;
-  }
-
   return {
-    request: validated,
+    request,
     response: { simulated: true, status: 'created', clientRef: client.id },
     warnings,
   };
 }
 
 export class CosperAdapter {
-  buildRequest(input: unknown): CosperBuildResult {
-    return buildCosperRequestImplementation(input);
+  buildRequest(client: CanonicalClient): CosperBuildResult {
+    return buildCosperRequestImplementation(client);
   }
 }
 

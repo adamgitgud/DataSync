@@ -5,9 +5,9 @@ export interface CompatValidationError {
   issues: readonly valibot.BaseIssue<unknown>[];
 }
 
-export interface CompatValidatedSchema<TParsed> {
+export interface CompatValidatedSchema<TParsed, TInput = unknown> {
   readonly schema: valibot.BaseSchema<
-    unknown,
+    TInput,
     TParsed,
     valibot.BaseIssue<unknown>
   >;
@@ -20,9 +20,9 @@ export interface CompatValidatedSchema<TParsed> {
       };
 }
 
-export function asCompatSchema<TParsed>(
-  schema: valibot.BaseSchema<unknown, TParsed, valibot.BaseIssue<unknown>>,
-): CompatValidatedSchema<TParsed> {
+export function asCompatSchema<TParsed, TInput = unknown>(
+  schema: valibot.BaseSchema<TInput, TParsed, valibot.BaseIssue<unknown>>,
+): CompatValidatedSchema<TParsed, TInput> {
   return {
     schema,
     parse(input) {
@@ -45,4 +45,11 @@ export function asCompatSchema<TParsed>(
 }
 
 export type InferCompatOutput<Schema> =
-  Schema extends CompatValidatedSchema<infer TParsed> ? TParsed : never;
+  Schema extends CompatValidatedSchema<infer TParsed, unknown>
+    ? TParsed
+    : never;
+
+export type InferCompatInput<Schema> =
+  Schema extends CompatValidatedSchema<unknown, infer TInput>
+    ? TInput
+    : unknown;

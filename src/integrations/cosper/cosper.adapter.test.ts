@@ -1,10 +1,8 @@
 import type { CanonicalClient } from '../../clients/schemas/canonical-client.schema';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { buildCosperRequest } from './cosper.adapter';
 import { canonicalClientSchema } from '../../clients/schemas/canonical-client.schema';
 import { cosperRequestSchema } from './cosper.schema';
-import { InvalidBuildResultError } from '../../common/errors/domain.error';
-import { InputValidationError } from '../../common/validation/input-validation';
 import { address, contact, minimalClient } from '../../testing/factories';
 
 describe('Cosper request builder', () => {
@@ -55,6 +53,7 @@ describe('Cosper request builder', () => {
     });
     expect(Object.keys(result.request)).toHaveLength(13);
     expect(canonicalClientSchema.parse(client)).toEqual(client);
+    expect(cosperRequestSchema.parse(result.request)).toEqual(result.request);
   });
 
   it.each([
@@ -183,7 +182,7 @@ describe('Cosper request builder', () => {
     ).toBeNull();
   });
 
-  it('does not mutate input and validates the complete canonical boundary', () => {
+  it('does not mutate input; edge schema owns the canonical boundary', () => {
     const client = minimalClient({
       addresses: [address({ country: 'FR' })],
       contact_details: [contact('email', 'x@y.test')],
@@ -196,7 +195,7 @@ describe('Cosper request builder', () => {
     expect(() => {
       const canonicalInput: CanonicalClient = { ...client, id: '' };
 
-      return buildCosperRequest(canonicalInput);
+      return canonicalClientSchema.parse(canonicalInput);
     }).toThrow();
     expect(() => {
       const extendedClient: CanonicalClient & Record<'extra', boolean> = {
@@ -206,21 +205,5 @@ describe('Cosper request builder', () => {
 
       return buildCosperRequest(extendedClient);
     }).not.toThrow();
-  });
-
-  it('maps internal request validation failures to build-result errors', () => {
-    const spy = vi
-      .spyOn(cosperRequestSchema, 'parse')
-      .mockImplementationOnce(() => {
-        throw new InputValidationError([{ path: ['Sex'], message: 'Invalid' }]);
-      });
-
-    try {
-      expect(() => buildCosperRequest(minimalClient())).toThrow(
-        InvalidBuildResultError,
-      );
-    } finally {
-      spy.mockRestore();
-    }
   });
 });

@@ -6,9 +6,18 @@ import type {
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { canonicalClientSchema } from '../../clients/schemas/canonical-client.schema';
-import { normaliseAcorn } from './acorn.adapter';
+import { normaliseAcorn as normaliseValidatedAcorn } from './acorn.adapter';
+import { acornClientSchema, type AcornClient } from './acorn.schema';
 import { InputValidationError } from '../../common/validation/input-validation';
 import { address, minimalClient } from '../../testing/factories';
+
+function validateAcorn(input: AcornPayload | unknown): AcornClient {
+  return acornClientSchema.parse(input);
+}
+
+function normalisePayload(input: AcornPayload | unknown) {
+  return normaliseValidatedAcorn(validateAcorn(input));
+}
 
 const fixture: unknown = JSON.parse(
   readFileSync(
@@ -18,10 +27,10 @@ const fixture: unknown = JSON.parse(
 );
 
 function expectInvalid(input: unknown, path: (string | number)[]) {
-  expect(() => normaliseAcorn(input)).toThrow(InputValidationError);
+  expect(() => validateAcorn(input)).toThrow(InputValidationError);
 
   try {
-    normaliseAcorn(input);
+    validateAcorn(input);
   } catch (error) {
     if (!(error instanceof InputValidationError)) {
       throw error;
@@ -37,7 +46,7 @@ describe('Acorn fixture', () => {
   it('maps every field literally, retaining its extra email and move-in date', () => {
     const before = structuredClone(fixture);
 
-    const result = normaliseAcorn(fixture);
+    const result = normalisePayload(fixture);
 
     expect(result).toEqual({
       id: '90210',
@@ -89,7 +98,7 @@ describe('Acorn enum mappings', () => {
   ])('maps gender %j to %j', (gender, expected) => {
     const acornInput: AcornPayload = { id: 1, person: { gender } };
 
-    expect(normaliseAcorn(acornInput).legal_sex).toBe(expected);
+    expect(normalisePayload(acornInput).legal_sex).toBe(expected);
 
     if (typeof gender === 'string') {
       const acornInput: AcornPayload = {
@@ -97,7 +106,7 @@ describe('Acorn enum mappings', () => {
         person: { gender: ` ${gender.toUpperCase()} ` },
       };
 
-      expect(normaliseAcorn(acornInput).legal_sex).toBe(expected);
+      expect(normalisePayload(acornInput).legal_sex).toBe(expected);
     }
   });
 
@@ -122,7 +131,7 @@ describe('Acorn enum mappings', () => {
       person: { maritalStatus },
     };
 
-    expect(normaliseAcorn(acornInput).marital_status).toBe(expected);
+    expect(normalisePayload(acornInput).marital_status).toBe(expected);
 
     if (typeof maritalStatus === 'string') {
       const acornInput: AcornPayload = {
@@ -130,7 +139,7 @@ describe('Acorn enum mappings', () => {
         person: { maritalStatus: ` ${maritalStatus.toUpperCase()} ` },
       };
 
-      expect(normaliseAcorn(acornInput).marital_status).toBe(expected);
+      expect(normalisePayload(acornInput).marital_status).toBe(expected);
     }
   });
 
@@ -155,7 +164,7 @@ describe('Acorn enum mappings', () => {
           contactPoints: [{ channel: label, detail: ' 07700 900123 ' }],
         };
 
-        expect(normaliseAcorn(acornInput).contact_details).toEqual([
+        expect(normalisePayload(acornInput).contact_details).toEqual([
           {
             type: expected,
             value:
@@ -176,7 +185,7 @@ describe('Acorn absent data and normalisation', () => {
     (person) => {
       const acornInput: AcornPayload = { id: 0, person };
 
-      expect(normaliseAcorn(acornInput)).toEqual(minimalClient({ id: '0' }));
+      expect(normalisePayload(acornInput)).toEqual(minimalClient({ id: '0' }));
     },
   );
 
@@ -185,7 +194,7 @@ describe('Acorn absent data and normalisation', () => {
     (id) => {
       const acornInput: AcornPayload = { id };
 
-      expect(normaliseAcorn(acornInput).id).toBe(String(id).trim());
+      expect(normalisePayload(acornInput).id).toBe(String(id).trim());
     },
   );
 
@@ -199,7 +208,7 @@ describe('Acorn absent data and normalisation', () => {
         contactPoints: items,
       };
 
-      expect(normaliseAcorn(acornInput)).toEqual(expected);
+      expect(normalisePayload(acornInput)).toEqual(expected);
     },
   );
 
@@ -243,7 +252,7 @@ describe('Acorn absent data and normalisation', () => {
       ],
     };
 
-    expect(normaliseAcorn(acornInput)).toEqual(expected);
+    expect(normalisePayload(acornInput)).toEqual(expected);
   });
 
   it('turns blank optional fields into null and retains an empty address', () => {
@@ -273,7 +282,7 @@ describe('Acorn absent data and normalisation', () => {
       ],
     };
 
-    expect(normaliseAcorn(acornInput)).toEqual(expected);
+    expect(normalisePayload(acornInput)).toEqual(expected);
   });
 
   it('prefers a recognized nationality code then a recognized/free-text name', () => {
@@ -289,7 +298,7 @@ describe('Acorn absent data and normalisation', () => {
         person: { nationalityCountry: { isoCode, name } },
       };
 
-      expect(normaliseAcorn(acornInput).nationality).toBe(expected);
+      expect(normalisePayload(acornInput).nationality).toBe(expected);
     }
   });
 
@@ -314,7 +323,7 @@ describe('Acorn absent data and normalisation', () => {
       ],
     };
 
-    expect(normaliseAcorn(acornInput).contact_details).toEqual([
+    expect(normalisePayload(acornInput).contact_details).toEqual([
       { type: 'mobile', value: '07700 900123 ext 4', primary: true },
       { type: 'other', value: 'fax:123', primary: false },
       { type: 'email', value: 'a@example.org', primary: true },
@@ -334,7 +343,7 @@ describe('Acorn absent data and normalisation', () => {
       contactPoints: [{ detail: 'abc', future: [] }],
     };
 
-    expect(normaliseAcorn(extendedAcornInput)).toEqual(expected);
+    expect(normalisePayload(extendedAcornInput)).toEqual(expected);
   });
 });
 
@@ -356,7 +365,7 @@ describe('Acorn address layout', () => {
         addresses: [{ buildingName, street, locality }],
       };
 
-      expect(normaliseAcorn(acornInput).addresses).toEqual([
+      expect(normalisePayload(acornInput).addresses).toEqual([
         address({ line1: line1 ?? null, line2: line2 ?? null }),
       ]);
     },
@@ -376,7 +385,7 @@ describe('Acorn address layout', () => {
       ],
     };
 
-    expect(normaliseAcorn(acornInput).addresses).toEqual([
+    expect(normalisePayload(acornInput).addresses).toEqual([
       address({ line1: 'Road', line2: 'Village' }),
       address({ line1: 'Building', line2: 'Road, Village', primary: true }),
     ]);

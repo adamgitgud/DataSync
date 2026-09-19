@@ -11,7 +11,7 @@ interface InspectionRequest {
 }
 
 interface InspectionResult {
-  inspected: unknown;
+  inspected: InspectionRequest;
 }
 
 const json = (value: unknown): RequestInit => ({
@@ -254,7 +254,9 @@ describe('HTTP registry routes', () => {
           name: 'future-provider',
           operations: {
             inspect: {
-              execute: (input): InspectionResult => ({ inspected: input }),
+              execute: (input: InspectionRequest): InspectionResult => ({
+                inspected: input,
+              }),
               documentation: {
                 summary: 'Inspect a future-provider payload',
                 requestExample: inspectionRequest,
@@ -352,5 +354,57 @@ describe('HTTP registry routes', () => {
 
     expect(big.status).toBe(413);
     expect((await big.json()).error.code).toBe('PAYLOAD_TOO_LARGE');
+  });
+
+  it('validates query strings per operation and ignores unknown query by default', async () => {
+    const { asCompatSchema } =
+      await import('./common/validation/schema-compat');
+    const valibot = await import('valibot');
+    const queryApp = createApp({
+      providers: [
+        {
+          name: 'query-provider',
+          operations: {
+            inspect: {
+              execute: (input: InspectionRequest): InspectionResult => ({
+                inspected: input,
+              }),
+              querySchema: asCompatSchema(
+                valibot.object({
+                  strict: valibot.optional(valibot.picklist(['true', 'false'])),
+                }),
+              ),
+            },
+          },
+        },
+      ],
+    });
+
+    const invalidQuery = await queryApp.request(
+      '/v1/query-provider/clients/inspect?strict=maybe',
+      { method: 'POST', ...json({ id: '7' }) },
+    );
+
+    expect(invalidQuery.status).toBe(422);
+    const invalidBody = (await invalidQuery.json()) as {
+      error: { code: string; issues: { path: (string | number)[] }[] };
+    };
+
+    expect(invalidBody.error.code).toBe('VALIDATION_ERROR');
+    expect(invalidBody.error.issues[0]?.path).toEqual(['strict']);
+
+    const validQuery = await queryApp.request(
+      '/v1/query-provider/clients/inspect?strict=true',
+      { method: 'POST', ...json({ id: '7' }) },
+    );
+
+    expect(validQuery.status).toBe(200);
+
+    const ignoredQuery = await app.request(
+      '/v1/acorn/clients/normalise?anything=goes',
+      { method: 'POST', ...json({ id: 7 }) },
+    );
+
+    expect(ignoredQuery.status).toBe(200);
   });
 });

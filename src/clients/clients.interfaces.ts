@@ -1,3 +1,6 @@
+import type { Handler } from 'hono';
+import type { DependencyVariables } from '../common/middleware/dependencies.middleware';
+import type { InputSchema } from '../common/validation/input-validation';
 import type { CanonicalClient } from './schemas/canonical-client.schema';
 
 export interface BuiltInProviderOperations {
@@ -22,18 +25,28 @@ export interface ProviderOperationDocumentation {
   readonly responseSchema?: string;
   readonly summary?: string;
   readonly description?: string;
-  readonly requestExample?: unknown;
+  readonly requestExample?: object | undefined;
 }
 
 export interface ProviderOperationDefinition<
-  TInput = unknown,
+  TBody = unknown,
   TResult = unknown,
   TFormatted = TResult,
+  TQuery = unknown,
 > {
-  readonly execute: (input: TInput) => TResult | Promise<TResult>;
-  readonly formatResult?: (provider: string, result: TResult) => TFormatted;
+  execute(input: TBody, query?: TQuery): TResult | Promise<TResult>;
+  formatResult?(provider: string, result: TResult): TFormatted;
   readonly documentation?: ProviderOperationDocumentation;
+  readonly bodySchema?: InputSchema<TBody>;
+  readonly querySchema?: InputSchema<TQuery>;
 }
+
+export type AnyProviderOperation = ProviderOperationDefinition<
+  unknown,
+  unknown,
+  unknown,
+  unknown
+>;
 
 export interface ProviderCapabilitySummary {
   readonly slug: string;
@@ -41,8 +54,11 @@ export interface ProviderCapabilitySummary {
 }
 
 export interface BuildRequestResult<
-  TRequest extends object = Record<string, unknown>,
-  TResponse extends object = { simulated: true; [key: string]: unknown },
+  TRequest extends Record<string, unknown> = Record<string, unknown>,
+  TResponse extends Record<string, unknown> & { simulated: true } = Record<
+    string,
+    unknown
+  > & { simulated: true },
   TWarning extends object = {
     code: string;
     path: (string | number)[];
@@ -59,15 +75,18 @@ export interface ProviderCapabilityPort<
   TOperation extends string = string,
 > {
   readonly name: TName;
-  readonly operations: Readonly<
-    Record<TOperation, ProviderOperationDefinition<unknown, unknown, unknown>>
-  >;
+  readonly operations: Readonly<Record<TOperation, AnyProviderOperation>>;
+}
+
+export interface ResolvedProviderOperation {
+  readonly provider: ProviderCapabilityPort;
+  readonly definition: AnyProviderOperation;
 }
 
 export function providerOperation(
   provider: ProviderCapabilityPort,
   operation: string,
-): ProviderOperationDefinition<unknown, unknown, unknown> | undefined {
+): AnyProviderOperation | undefined {
   if (!Object.hasOwn(provider.operations, operation)) {
     return undefined;
   }
@@ -78,6 +97,10 @@ export function providerOperation(
 export interface ProviderRegistryPort {
   list(): ProviderCapabilitySummary[];
   find(name: string): ProviderCapabilityPort | undefined;
+  findOperation(
+    name: string,
+    operation: string,
+  ): ResolvedProviderOperation | undefined;
 }
 
 export interface ClientsServicePort {
@@ -94,16 +117,13 @@ export interface ClientsServicePort {
     provider: string,
     operation: string,
     input: unknown,
+    query?: unknown,
   ): unknown | Promise<unknown>;
 }
 
 export interface ClientsControllerPort {
-  providers(): ProviderCapabilitySummary[];
-  operation(
-    provider: string,
-    operation: string,
-    request: Request,
-  ): Promise<unknown>;
+  readonly listProviders: Handler<{ Variables: DependencyVariables }>;
+  readonly executeOperation: Handler<{ Variables: DependencyVariables }>;
 }
 
 export type ProviderBuildResponse<

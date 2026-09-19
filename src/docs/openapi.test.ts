@@ -9,6 +9,7 @@ import { throwInvariant } from '../common/errors/invariant';
 import OpenAPISchemaValidator from 'openapi-schema-validator';
 import type { OpenAPI } from 'openapi-types';
 import { openApiDocument, operationDocumentation } from './openapi';
+import { providerOperation } from '../clients/clients.interfaces';
 import { acornClientSchema } from '../integrations/acorn/acorn.schema';
 import { beaconClientSchema } from '../integrations/beacon/beacon.schema';
 import { canonicalClientSchema } from '../clients/schemas/canonical-client.schema';
@@ -59,6 +60,21 @@ describe('OpenAPI document', () => {
     const registry: ProviderRegistryPort = {
       list: () => [],
       find: (name: string) => entries.find((entry) => entry.name === name),
+      findOperation: (name: string, operation: string) => {
+        const provider = entries.find((entry) => entry.name === name);
+
+        if (provider === undefined) {
+          return undefined;
+        }
+
+        const definition = providerOperation(provider, operation);
+
+        if (definition === undefined) {
+          return undefined;
+        }
+
+        return { provider, definition };
+      },
     };
 
     return openApiDocument(caps, operationDocumentation(registry, caps));
@@ -193,7 +209,7 @@ describe('OpenAPI document', () => {
       post: { responses: Record<string, unknown> };
     };
 
-    for (const status of ['400', '404', '422', '500']) {
+    for (const status of ['400', '404', '413', '422', '500']) {
       expect(
         operation.post.responses[status] ??
           throwInvariant(`Missing ${status} response`),
@@ -305,8 +321,42 @@ describe('OpenAPI document', () => {
 
   it('is valid OpenAPI 3.0 according to an independent validator', () => {
     const validator = new OpenAPISchemaValidator({ version: 3 });
-    expect(
-      validator.validate(documentedDocument() as OpenAPI.Document).errors,
-    ).toEqual([]);
+    const document = documentedDocument();
+
+    expect(validator.validate(document as OpenAPI.Document).errors).toEqual([]);
+  });
+
+  it('has no unreferenced component schemas', () => {
+    const document = documentedDocument();
+    const refs = new Set<string>();
+
+    JSON.stringify(document, (_key, value) => {
+      if (
+        value !== null &&
+        typeof value === 'object' &&
+        typeof (value as { $ref?: unknown }).$ref === 'string'
+      ) {
+        refs.add((value as { $ref: string }).$ref.split('/').pop() as string);
+      }
+
+      return value;
+    });
+
+    for (const name of Object.keys(document.components.schemas)) {
+      expect(refs.has(name)).toBe(true);
+    }
+  });
+
+  it('documents provider and operation path params', () => {
+    const document = documentedDocument();
+    const operation = (document.paths['/v1/acorn/clients/normalise'] ??
+      throwInvariant('Missing Acorn operation')) as {
+      post: { parameters: { name: string; in: string; required: boolean }[] };
+    };
+
+    expect(operation.post.parameters).toMatchObject([
+      { name: 'provider', in: 'path', required: true },
+      { name: 'operation', in: 'path', required: true },
+    ]);
   });
 });

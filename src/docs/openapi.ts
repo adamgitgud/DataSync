@@ -20,7 +20,6 @@ type OpenApiSchemaName =
   | 'CanonicalClient'
   | 'AcornClient'
   | 'BeaconClient'
-  | 'BeaconBagEntry'
   | 'SimulatedCosperResponse'
   | 'ErrorIssue'
   | 'ErrorResponse';
@@ -36,9 +35,11 @@ interface ApiDocument extends OpenAPIV3.Document {
 const json = (
   schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject,
 ): OpenAPIV3.MediaTypeObject => ({ schema });
+
 const ref = (name: string): OpenAPIV3.ReferenceObject => ({
   $ref: `#/components/schemas/${name}`,
 });
+
 const schemaOptions: ConversionConfig = {
   target: 'openapi-3.0' as const,
   errorMode: 'ignore' as const,
@@ -98,6 +99,20 @@ function operationDocument(
       (buildRequest
         ? 'Cosper creation is simulated; no outbound provider call is made.'
         : 'Validates raw provider JSON, then returns the canonical Client projection. Mappings can be lossy.'),
+    parameters: [
+      {
+        name: 'provider',
+        in: 'path',
+        required: true,
+        schema: { type: 'string', minLength: 1 },
+      },
+      {
+        name: 'operation',
+        in: 'path',
+        required: true,
+        schema: { type: 'string', minLength: 1 },
+      },
+    ],
     requestBody: {
       required: true,
       content: {
@@ -131,9 +146,9 @@ function operationDocument(
         },
       },
       '400': errorResponse('Malformed JSON or unsupported operation'),
-      '404': errorResponse('Provider not found'),
+      '404': errorResponse('Unknown provider or route'),
       '413': errorResponse('Request body too large'),
-      '422': errorResponse('Invalid request payload'),
+      '422': errorResponse('Invalid request params, query or payload'),
       '500': errorResponse('Internal server error'),
     },
   };
@@ -177,15 +192,6 @@ function components(): DocumentComponents {
         ...convertedSchema(beaconClientSchema.schema),
         description:
           'Raw Beacon JSON. Recognized bag values are validated even when superseded.',
-      },
-      BeaconBagEntry: {
-        type: 'object',
-        required: ['key'],
-        additionalProperties: false,
-        properties: {
-          key: { type: 'string' },
-          value: { nullable: true },
-        },
       },
       SimulatedCosperResponse: {
         type: 'object',

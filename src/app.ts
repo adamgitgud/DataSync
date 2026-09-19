@@ -25,7 +25,7 @@ export function createApp(dependencies: DependencyOverrides = {}) {
 
   registerErrorHandling(app);
 
-  registerProviderRoutes(app);
+  registerProviderRoutes(app, graph.clientsController);
 
   registerOpenApiRoutes(
     app,

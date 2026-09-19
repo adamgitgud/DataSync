@@ -1,6 +1,11 @@
 import type { AcornClientReference } from './acorn/acorn.schema';
+import { acornClientSchema } from './acorn/acorn.schema';
 import type { BeaconClient } from './beacon/beacon.schema';
-import { createEmptyCanonicalClient } from '../clients/schemas/canonical-client.schema';
+import { beaconClientSchema } from './beacon/beacon.schema';
+import {
+  canonicalClientSchema,
+  createEmptyCanonicalClient,
+} from '../clients/schemas/canonical-client.schema';
 import type { CosperBuildResult } from './cosper/cosper.schema';
 import { AcornAdapter } from './acorn/acorn.adapter';
 import { BeaconAdapter } from './beacon/beacon.adapter';
@@ -10,7 +15,9 @@ import type {
   ProviderCapabilityPort,
   ProviderBuildResponse,
   BuiltInProviderCapability,
+  ResolvedProviderOperation,
 } from '../clients/clients.interfaces';
+import { providerOperation } from '../clients/clients.interfaces';
 
 const acornExample: AcornClientReference = { id: 1 };
 
@@ -31,6 +38,7 @@ export function createBuiltInRegistry(): BuiltInProviderCapability[] {
       operations: {
         normalise: {
           execute: acornAdapter.normalise.bind(acornAdapter),
+          bodySchema: acornClientSchema,
           documentation: {
             requestSchema: 'AcornClient',
             responseSchema: 'CanonicalClient',
@@ -47,6 +55,7 @@ export function createBuiltInRegistry(): BuiltInProviderCapability[] {
       operations: {
         normalise: {
           execute: beaconAdapter.normalise.bind(beaconAdapter),
+          bodySchema: beaconClientSchema,
           documentation: {
             requestSchema: 'BeaconClient',
             responseSchema: 'CanonicalClient',
@@ -63,12 +72,13 @@ export function createBuiltInRegistry(): BuiltInProviderCapability[] {
       operations: {
         'build-request': {
           execute: cosperAdapter.buildRequest.bind(cosperAdapter),
+          bodySchema: canonicalClientSchema,
           formatResult: (
-            provider,
-            result,
+            provider: string,
+            result: CosperBuildResult,
           ): ProviderBuildResponse<CosperBuildResult> => ({
             provider,
-            ...(result as ReturnType<CosperAdapter['buildRequest']>),
+            ...result,
           }),
           documentation: {
             requestSchema: 'CanonicalClient',
@@ -98,6 +108,26 @@ export function findProvider(
     (provider) =>
       normaliseProviderName(provider.name) === normalisedProviderName,
   );
+}
+
+export function findProviderOperation(
+  name: string,
+  operation: string,
+  entries: readonly ProviderCapabilityPort[] = createBuiltInRegistry(),
+): ResolvedProviderOperation | undefined {
+  const provider = findProvider(name, entries);
+
+  if (provider === undefined) {
+    return undefined;
+  }
+
+  const definition = providerOperation(provider, operation);
+
+  if (definition === undefined) {
+    return undefined;
+  }
+
+  return { provider, definition };
 }
 
 export function providerCapabilities(

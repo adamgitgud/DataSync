@@ -1,8 +1,20 @@
-import type { ClientsServicePort } from './clients/clients.interfaces';
+import type {
+  ClientsControllerPort,
+  ClientsServicePort,
+} from './clients/clients.interfaces';
+import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { ClientsController } from './clients/clients.controller';
 import { createDependencies } from './app.dependencies';
 import { minimalClient } from './testing/factories';
+
+async function listProvidersViaHttp(controller: ClientsControllerPort) {
+  const testApp = new Hono();
+
+  testApp.get('/v1/providers', controller.listProviders);
+
+  return (await testApp.request('/v1/providers')).json();
+}
 
 describe('createDependencies', () => {
   it('constructs a complete default graph', () => {
@@ -19,7 +31,7 @@ describe('createDependencies', () => {
     ).not.toThrow();
   });
 
-  it('wires lower-level overrides into default services', () => {
+  it('wires lower-level overrides into default services', async () => {
     const dependencies = createDependencies({
       providers: [
         {
@@ -36,12 +48,12 @@ describe('createDependencies', () => {
     expect(dependencies.clientsService.listProviders()).toEqual([
       { slug: 'cosper', supports: ['build-request'] },
     ]);
-    expect(dependencies.clientsController.providers()).toEqual([
+    expect(await listProvidersViaHttp(dependencies.clientsController)).toEqual([
       { slug: 'cosper', supports: ['build-request'] },
     ]);
   });
 
-  it('honors explicit service and controller replacements', () => {
+  it('honors explicit service and controller replacements', async () => {
     const stubId = 'fake';
     const clientsService: ClientsServicePort = {
       listProviders: () => [
@@ -55,7 +67,21 @@ describe('createDependencies', () => {
       }),
       execute: () => minimalClient({ id: stubId }),
     };
-    const clientsController = new ClientsController(clientsService);
+    const acornCapability = {
+      name: 'acorn',
+      operations: { normalise: { execute: () => ({}) } },
+    } as const;
+    const clientsController = new ClientsController(clientsService, {
+      list: () => [{ slug: 'acorn', supports: ['normalise'] }],
+      find: (name) => (name === 'acorn' ? acornCapability : undefined),
+      findOperation: (name, operation) =>
+        name === 'acorn' && operation === 'normalise'
+          ? {
+              provider: acornCapability,
+              definition: acornCapability.operations.normalise,
+            }
+          : undefined,
+    });
 
     const dependencies = createDependencies({
       clientsService,
@@ -64,7 +90,7 @@ describe('createDependencies', () => {
 
     expect(dependencies.clientsService).toBe(clientsService);
     expect(dependencies.clientsController).toBe(clientsController);
-    expect(dependencies.clientsController.providers()).toEqual([
+    expect(await listProvidersViaHttp(dependencies.clientsController)).toEqual([
       { slug: 'acorn', supports: ['normalise'] },
     ]);
   });

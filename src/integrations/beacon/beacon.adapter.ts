@@ -1,5 +1,4 @@
 import {
-  canonicalClientSchema,
   type CanonicalClient,
   type CanonicalContactDetail,
 } from '../../clients/schemas/canonical-client.schema';
@@ -20,8 +19,7 @@ import {
   normaliseNi,
   normalisePostcode,
 } from '../../common/normalisation/text';
-import { parseInput } from '../../common/validation/input-validation';
-import { beaconClientSchema } from './beacon.schema';
+import { type BeaconClient } from './beacon.schema';
 
 const channels = new Map<number, CanonicalContactDetail['type']>([
   [1, 'email'],
@@ -29,9 +27,7 @@ const channels = new Map<number, CanonicalContactDetail['type']>([
   [3, 'telephone'],
 ]);
 
-function normaliseBeaconImplementation(input: unknown): CanonicalClient {
-  const source = parseInput(beaconClientSchema, input);
-
+function normaliseBeaconImplementation(source: BeaconClient): CanonicalClient {
   const { attributes } = source;
 
   const formatted = source.formattedValues;
@@ -72,12 +68,12 @@ function normaliseBeaconImplementation(input: unknown): CanonicalClient {
     contact_details: contacts,
   };
 
-  return canonicalClientSchema.parse(client);
+  return client;
 }
 
 export class BeaconAdapter {
-  normalise(input: unknown): CanonicalClient {
-    return normaliseBeaconImplementation(input);
+  normalise(source: BeaconClient): CanonicalClient {
+    return normaliseBeaconImplementation(source);
   }
 }
 

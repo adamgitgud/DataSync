@@ -7,9 +7,18 @@ import type {
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { canonicalClientSchema } from '../../clients/schemas/canonical-client.schema';
-import { normaliseBeacon } from './beacon.adapter';
+import { normaliseBeacon as normaliseValidatedBeacon } from './beacon.adapter';
+import { beaconClientSchema, type BeaconClient } from './beacon.schema';
 import { InputValidationError } from '../../common/validation/input-validation';
 import { address, minimalClient } from '../../testing/factories';
+
+function validateBeacon(input: BeaconPayload | unknown): BeaconClient {
+  return beaconClientSchema.parse(input);
+}
+
+function normalisePayload(input: BeaconPayload | unknown) {
+  return normaliseValidatedBeacon(validateBeacon(input));
+}
 
 const fixture: unknown = JSON.parse(
   readFileSync(
@@ -19,10 +28,10 @@ const fixture: unknown = JSON.parse(
 );
 
 function invalid(input: unknown, path: (string | number)[]) {
-  expect(() => normaliseBeacon(input)).toThrow(InputValidationError);
+  expect(() => validateBeacon(input)).toThrow(InputValidationError);
 
   try {
-    normaliseBeacon(input);
+    validateBeacon(input);
   } catch (error) {
     if (!(error instanceof InputValidationError)) {
       throw error;
@@ -49,7 +58,7 @@ describe('Beacon literal fixture', () => {
   it('preserves its ID and address boundaries, normalises all shared data without mutation', () => {
     const before = structuredClone(fixture);
 
-    const result = normaliseBeacon(fixture);
+    const result = normalisePayload(fixture);
 
     expect(result).toEqual({
       id: 'c0ffee7a-1e4b-2c9d-3e00-000000000001',
@@ -107,7 +116,7 @@ describe('Beacon enums', () => {
         formattedValues: [{ key: 'gendercode', value: label }],
       };
 
-      expect(normaliseBeacon(beaconInput).legal_sex).toBe(expected);
+      expect(normalisePayload(beaconInput).legal_sex).toBe(expected);
     }
   });
 
@@ -136,7 +145,7 @@ describe('Beacon enums', () => {
         formattedValues: [{ key: 'familystatuscode', value: label }],
       };
 
-      expect(normaliseBeacon(beaconInput).marital_status).toBe(expected);
+      expect(normalisePayload(beaconInput).marital_status).toBe(expected);
     }
   });
 
@@ -155,7 +164,7 @@ describe('Beacon enums', () => {
       contacts: [{ type, value: ' 07700 900123 ' }],
     };
 
-    expect(normaliseBeacon(beaconInput).contact_details).toEqual([
+    expect(normalisePayload(beaconInput).contact_details).toEqual([
       {
         type: expected,
         value:
@@ -183,7 +192,7 @@ describe('Beacon bags', () => {
         contacts: items,
       };
 
-      expect(normaliseBeacon(extendedBeaconInput)).toEqual(expected);
+      expect(normalisePayload(extendedBeaconInput)).toEqual(expected);
     },
   );
 
@@ -202,7 +211,7 @@ describe('Beacon bags', () => {
         ],
       };
 
-      const result = normaliseBeacon(beaconInput);
+      const result = normalisePayload(beaconInput);
 
       expect(result.first_name).toBe(last === 'Last' ? 'Last' : null);
       expect(result.title).toBe(last === 'Last' ? 'Last' : null);
@@ -224,7 +233,7 @@ describe('Beacon bags', () => {
       ],
     };
 
-    const result = normaliseBeacon(beaconInput);
+    const result = normalisePayload(beaconInput);
 
     expect(result).toMatchObject({
       date_of_birth: null,
@@ -248,7 +257,7 @@ describe('Beacon bags', () => {
       extra: 42,
     };
 
-    expect(normaliseBeacon(extendedBeaconInput)).toEqual(expected);
+    expect(normalisePayload(extendedBeaconInput)).toEqual(expected);
   });
 
   it('cleans text and keys, normalises names/NI/nationality, and parses exact dates', () => {
@@ -275,7 +284,7 @@ describe('Beacon bags', () => {
       formattedValues: [{ key: 'title', value: ' Dr ' }],
     };
 
-    expect(normaliseBeacon(beaconInput)).toEqual(expected);
+    expect(normalisePayload(beaconInput)).toEqual(expected);
   });
 
   it('cleans all recognized blank values to null/defaults', () => {
@@ -286,7 +295,7 @@ describe('Beacon bags', () => {
       formattedValues: formatted.map((key) => ({ key, value: null })),
     };
 
-    expect(normaliseBeacon(beaconInput)).toEqual(expected);
+    expect(normalisePayload(beaconInput)).toEqual(expected);
   });
 });
 
@@ -305,7 +314,7 @@ describe('Beacon addresses and contacts', () => {
       addresses: [{ primary }],
     };
 
-    expect(normaliseBeacon(beaconInput).addresses).toEqual([
+    expect(normalisePayload(beaconInput).addresses).toEqual([
       address({ primary: expected === true }),
     ]);
   });
@@ -331,7 +340,7 @@ describe('Beacon addresses and contacts', () => {
       ],
     };
 
-    expect(normaliseBeacon(extendedBeaconInput).addresses).toEqual([
+    expect(normalisePayload(extendedBeaconInput).addresses).toEqual([
       address({
         line1: 'Flat 4, 12 Road',
         line2: 'Village',
@@ -361,7 +370,7 @@ describe('Beacon addresses and contacts', () => {
       ],
     };
 
-    expect(normaliseBeacon(extendedBeaconInput).contact_details).toEqual([
+    expect(normalisePayload(extendedBeaconInput).contact_details).toEqual([
       { type: 'telephone', value: '+442079001234', primary: true },
       { type: 'mobile', value: '07700 900123 ext 2', primary: false },
       { type: 'other', value: 'fax', primary: true },

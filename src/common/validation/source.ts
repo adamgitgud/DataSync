@@ -1,5 +1,10 @@
 import * as valibot from 'valibot';
 
+export type JsonValue =
+  string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
+
+export type RawQuery = Record<string, string | string[] | undefined>;
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

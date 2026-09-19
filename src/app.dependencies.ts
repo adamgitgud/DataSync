@@ -7,6 +7,7 @@ import type {
 } from './clients/clients.interfaces';
 import {
   createBuiltInRegistry,
+  findProviderOperation,
   normaliseProviderName,
   providerCapabilities,
 } from './integrations/provider.registry';
@@ -46,6 +47,8 @@ export function createDependencies(
           normaliseProviderName(provider.name) === normalisedProviderName,
       );
     },
+    findOperation: (name, operation) =>
+      findProviderOperation(name, operation, entries),
   };
 
   const clientsService =
@@ -56,6 +59,7 @@ export function createDependencies(
     clientsService,
     logger: overrides.logger ?? defaultLogger,
     clientsController:
-      overrides.clientsController ?? new ClientsController(clientsService),
+      overrides.clientsController ??
+      new ClientsController(clientsService, registry),
   };
 }

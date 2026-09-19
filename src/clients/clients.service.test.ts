@@ -1,52 +1,57 @@
 import type { BuildRequestResult } from './clients.interfaces';
 import type { CosperRequest } from '../integrations/cosper/cosper.schema';
-import type { AcornPayload } from '../testing/payloads';
 import { describe, expect, it } from 'vitest';
 import { ClientsService } from './clients.service';
-import { HttpError, asHttpError } from '../common/errors/http.error';
+import { asHttpError } from '../common/errors/http.error';
 import { OperationNotSupportedError } from '../common/errors/domain.error';
-import { InputValidationError } from '../common/validation/input-validation';
 import { minimalClient } from '../testing/factories';
 import { createDependencies } from '../app.dependencies';
+import { acornClientSchema } from '../integrations/acorn/acorn.schema';
 
 describe('ClientsService', () => {
   it('lists and dispatches through an injected provider port', async () => {
-    const calls: string[] = [];
+    const calls: unknown[] = [];
     const stubClientRef = 'x';
+
+    const cosperCapability = {
+      name: 'cosper',
+      operations: {
+        'build-request': {
+          execute: (input: unknown): BuildRequestResult<CosperRequest> => {
+            calls.push(input);
+
+            return {
+              request: {
+                ClientRef: stubClientRef,
+                Forename: null,
+                Surname: null,
+                DateOfBirth: null,
+                Sex: 2,
+                MaritalStatus: 0,
+                AddressLine1: null,
+                AddressLine2: null,
+                Town: null,
+                Postcode: null,
+                Country: null,
+                Email: null,
+                Telephone: null,
+              },
+              response: { simulated: true },
+              warnings: [],
+            };
+          },
+        },
+      },
+    } as const;
 
     const service = new ClientsService({
       list: () => [{ slug: 'cosper', supports: ['build-request'] }],
-      find: (name) =>
-        name === 'cosper'
+      find: (name) => (name === 'cosper' ? cosperCapability : undefined),
+      findOperation: (name, operation) =>
+        name === 'cosper' && operation === 'build-request'
           ? {
-              name: 'cosper',
-              operations: {
-                'build-request': {
-                  execute: (input): BuildRequestResult<CosperRequest> => {
-                    calls.push(String(input));
-
-                    return {
-                      request: {
-                        ClientRef: stubClientRef,
-                        Forename: null,
-                        Surname: null,
-                        DateOfBirth: null,
-                        Sex: 2,
-                        MaritalStatus: 0,
-                        AddressLine1: null,
-                        AddressLine2: null,
-                        Town: null,
-                        Postcode: null,
-                        Country: null,
-                        Email: null,
-                        Telephone: null,
-                      },
-                      response: { simulated: true },
-                      warnings: [],
-                    };
-                  },
-                },
-              },
+              provider: cosperCapability,
+              definition: cosperCapability.operations['build-request'],
             }
           : undefined,
     });
@@ -57,13 +62,14 @@ describe('ClientsService', () => {
     const expectedRequest: Pick<CosperRequest, 'ClientRef'> = {
       ClientRef: stubClientRef,
     };
+    const stubInput = { note: 'payload' };
 
     await expect(
-      service.buildRequest('cosper', 'payload'),
+      service.buildRequest('cosper', stubInput),
     ).resolves.toMatchObject({
       request: expectedRequest,
     });
-    expect(calls).toEqual(['payload']);
+    expect(calls).toEqual([stubInput]);
   });
 
   it('supports zero-argument construction', async () => {
@@ -73,11 +79,11 @@ describe('ClientsService', () => {
       'beacon',
       'cosper',
     ]);
-    const acornInput: AcornPayload = { id: 1 };
+    const acornInput = acornClientSchema.parse({ id: 1 });
 
     await expect(service.normalise('acorn', acornInput)).resolves.toMatchObject(
       {
-        id: String(acornInput.id).trim(),
+        id: acornInput.id,
       },
     );
     const defaultClient = minimalClient();
@@ -93,6 +99,7 @@ describe('ClientsService', () => {
     const service = new ClientsService({
       list: () => [],
       find: () => undefined,
+      findOperation: () => undefined,
     });
     const emptyInput: Record<string, never> = {};
 
@@ -113,31 +120,30 @@ describe('ClientsService', () => {
     });
   });
 
-  it('surfaces invalid canonical output as a validation error', async () => {
+  it('trusts adapter output without re-validating (edge owns validation)', async () => {
+    const acornCapability = {
+      name: 'acorn',
+      operations: {
+        normalise: {
+          execute: () => minimalClient({ id: '' }),
+        },
+      },
+    } as const;
+
     const service = new ClientsService({
       list: () => [{ slug: 'acorn', supports: ['normalise'] }],
-      find: (name) =>
-        name === 'acorn'
+      find: (name) => (name === 'acorn' ? acornCapability : undefined),
+      findOperation: (name, operation) =>
+        name === 'acorn' && operation === 'normalise'
           ? {
-              name: 'acorn',
-              operations: {
-                normalise: {
-                  execute: () => ({ id: '' }),
-                },
-              },
+              provider: acornCapability,
+              definition: acornCapability.operations.normalise,
             }
           : undefined,
     });
 
-    const error = await service
-      .normalise('acorn', { id: 1 })
-      .catch((cause: unknown) => cause);
-
-    expect(error).toBeInstanceOf(InputValidationError);
-    expect(asHttpError(error)).toMatchObject({
-      status: 422,
-      code: 'VALIDATION_ERROR',
-    });
-    expect(error).not.toBeInstanceOf(HttpError);
+    await expect(
+      service.normalise('acorn', acornClientSchema.parse({ id: 1 })),
+    ).resolves.toMatchObject({ id: '' });
   });
 });
